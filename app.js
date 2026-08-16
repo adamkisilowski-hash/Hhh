@@ -606,6 +606,29 @@
       .catch(function () { /* offline or rate-limited — coordinates remain the fallback */ });
   }
 
+  // The reverse of reverseGeocode: turn a typed address into coordinates,
+  // via the same free Nominatim service. Unlike the automatic street lookup
+  // above, this only ever runs from an explicit form submit, so it needs no
+  // rate-limiting of its own — a person typing and submitting an address is
+  // already self-throttling in a way a fix arriving every second isn't.
+  function forwardGeocode(query) {
+    var url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&q=' +
+      encodeURIComponent(query);
+    return fetch(url, { headers: { Accept: 'application/json' } })
+      .then(function (r) {
+        // Distinct from "no results": a non-ok response means the search
+        // itself didn't run, so it should surface as a failure rather than
+        // silently reading the same as a genuine no-match.
+        if (!r.ok) throw new Error('geocode request failed: ' + r.status);
+        return r.json();
+      })
+      .then(function (results) {
+        var hit = results && results[0];
+        if (!hit) return null;
+        return { lat: parseFloat(hit.lat), lng: parseFloat(hit.lon), displayName: hit.display_name || query };
+      });
+  }
+
   function renderStreet() {
     var row = $('street-row');
     row.hidden = !state.streetName;
@@ -1232,6 +1255,44 @@
       if (!parsed) { toast(t('toast.enterCoords')); return; }
       state.followMe = false;
       map.setView(parsed.lat, parsed.lng, 15);
+    });
+
+    $('address-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var query = $('address-input').value.trim();
+      if (!query) { toast(t('places.enterAddress')); return; }
+      var btn = $('address-submit');
+      var restingLabel = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = t('places.searching');
+      forwardGeocode(query)
+        .then(function (hit) {
+          if (!hit) { toast(t('places.noAddressResults')); return; }
+          var name = prompt(t('now.namePlacePrompt'), query);
+          if (name == null) return;
+          name = name.trim() || t('now.unnamedPlace');
+          state.places.push({
+            id: String(Date.now()) + Math.random().toString(36).slice(2, 6),
+            name: name,
+            lat: hit.lat,
+            lng: hit.lng,
+            accuracy: null,
+            savedAt: Date.now()
+          });
+          savePlaces();
+          syncPlaceMarkers();
+          renderPlaces();
+          state.followMe = false;
+          map.setView(hit.lat, hit.lng, 16);
+          toast(t('toast.saved', { name: name }));
+          $('address-input').value = '';
+          $('address-form').closest('details').open = false;
+        })
+        .catch(function () { toast(t('places.addressSearchFailed')); })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = restingLabel;
+        });
     });
 
     $('banner-close').addEventListener('click', function () {

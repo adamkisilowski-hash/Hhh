@@ -22,7 +22,9 @@
     climb: 0,
     places: [],
     prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true },
-    followMe: true
+    followMe: true,
+    immersive: false,
+    advisedOnPrecision: false
   };
 
   var map;
@@ -309,7 +311,49 @@
     syncWatch();
   }
 
+  /* A GPS that has just dropped to Wi-Fi or cell positioning reports a fix
+   * that is both fresh and far worse. Taking it would throw the marker
+   * hundreds of metres and poison the track, so hold the better fix — but
+   * only briefly, or a stale reading would outlive its usefulness once
+   * you've actually moved. */
+  function isWorseFix(pos) {
+    var current = state.position;
+    if (!current) return false;
+    var was = current.coords.accuracy;
+    var now = pos.coords.accuracy;
+    if (was == null || now == null) return false;
+    var age = pos.timestamp - current.timestamp;
+    if (!(now > was * 3 && now > 50 && age < 15000)) return false;
+    // Only hold it if taking it would actually move the marker. A vaguer
+    // reading of the same spot still deserves to refresh the accuracy
+    // readout, otherwise the precision shown goes stale and misleads.
+    var moved = distance(
+      { lat: current.coords.latitude, lng: current.coords.longitude },
+      { lat: pos.coords.latitude, lng: pos.coords.longitude }
+    );
+    return moved > was;
+  }
+
+  function precisionOf(accuracy) {
+    if (accuracy == null) return { key: 'unknown', label: 'Accuracy unknown' };
+    if (accuracy <= 20) return { key: 'precise', label: 'Precise' };
+    if (accuracy <= 75) return { key: 'good', label: 'Good' };
+    if (accuracy <= 500) return { key: 'approx', label: 'Approximate' };
+    return { key: 'coarse', label: 'Coarse — network fix' };
+  }
+
+  // Only worth saying once, and only when the fix is bad enough to act on.
+  function maybeAdviseOnPrecision(accuracy) {
+    if (state.advisedOnPrecision || accuracy == null || accuracy <= 500) return;
+    state.advisedOnPrecision = true;
+    var ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    banner('This fix is ±' + formatDistance(accuracy) + ', which means it came from the network rather than GPS. ' +
+      (ios ? 'Check Settings → Privacy → Location Services → your browser → Precise Location.'
+           : 'Check your device location settings and allow precise location for this site.'), 'warn');
+  }
+
   function handlePosition(pos, recenter) {
+    if (!recenter && isWorseFix(pos)) return;
     state.position = pos;
     var c = pos.coords;
     var point = {
@@ -391,6 +435,18 @@
     $('fix-age').textContent = 'Fix from ' + relativeTime(pos.timestamp) +
       (state.tracking ? ' · recording trip' : '');
     $('locate-label').textContent = 'Update location';
+
+    var quality = precisionOf(c.accuracy);
+    $('precision').dataset.quality = quality.key;
+    $('precision-text').textContent = c.accuracy != null
+      ? quality.label + ' · ±' + formatDistance(c.accuracy)
+      : quality.label;
+    maybeAdviseOnPrecision(c.accuracy);
+
+    $('hud').hidden = !state.immersive;
+    $('hud-coords').textContent = c.latitude.toFixed(5) + ', ' + c.longitude.toFixed(5);
+    $('hud-meta').textContent = (c.accuracy != null ? '±' + formatDistance(c.accuracy) : '') +
+      (c.speed != null && !isNaN(c.speed) ? ' · ' + formatSpeed(c.speed) : '');
   }
 
   function renderTrip() {
@@ -456,6 +512,47 @@
     state.places.forEach(function (p) {
       map.setMarker('place:' + p.id, p.lat, p.lng, 'mm-marker-place', p.name);
     });
+  }
+
+  /* ---------------------------------------------------------- fullscreen */
+
+  /* Two separate things, deliberately driven by one button: the Fullscreen
+   * API (which iOS Safari doesn't offer at all) and an immersive layout that
+   * hides the panel. The layout half always works, so the button still does
+   * something useful where the API is missing. */
+
+  function setImmersive(on) {
+    state.immersive = on;
+    document.body.classList.toggle('is-immersive', on);
+    $('hud').hidden = !on || !state.position;
+    var btn = $('fullscreen');
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.title = on ? 'Exit full screen' : 'Full screen map';
+    // The stage resized, so the map needs to refill it.
+    if (map) map.render();
+  }
+
+  function toggleFullscreen() {
+    var el = document.documentElement;
+    var request = el.requestFullscreen || el.webkitRequestFullscreen;
+    var exit = document.exitFullscreen || document.webkitExitFullscreen;
+    var active = document.fullscreenElement || document.webkitFullscreenElement;
+
+    if (!state.immersive) {
+      setImmersive(true);
+      if (request) {
+        // Rejection is normal (denied, or unsupported on iOS) — the
+        // immersive layout is already in place either way.
+        var p = request.call(el);
+        if (p && p.catch) p.catch(function () {});
+      }
+    } else {
+      setImmersive(false);
+      if (active && exit) {
+        var q = exit.call(document);
+        if (q && q.catch) q.catch(function () {});
+      }
+    }
   }
 
   /* ---------------------------------------------------------------- hash */
@@ -605,6 +702,17 @@
       map.setView(parsed.lat, parsed.lng, 15);
     });
 
+    $('fullscreen').addEventListener('click', toggleFullscreen);
+
+    // Esc and the browser's own controls leave fullscreen without telling the
+    // button, so follow the document rather than assuming our click did it.
+    ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (evt) {
+      document.addEventListener(evt, function () {
+        var active = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!active && state.immersive) setImmersive(false);
+      });
+    });
+
     $('live-toggle').addEventListener('click', function () {
       if (state.tracking && state.prefs.live) {
         toast('Stop the trip recording first.');
@@ -659,6 +767,8 @@
     document.addEventListener('keydown', function (e) {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'l') locateOnce();
+      if (e.key === 'f') toggleFullscreen();
+      if (e.key === 'Escape' && state.immersive) setImmersive(false);
       if (e.key === '+' || e.key === '=') map.zoomBy(1);
       if (e.key === '-') map.zoomBy(-1);
     });

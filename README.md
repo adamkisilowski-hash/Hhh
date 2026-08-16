@@ -116,25 +116,12 @@ fix twice and only costs battery. This is the expensive part of the battery
 bill, so it's a control rather than a fixed choice, and the Live pill pauses it
 outright.
 
-Preferences (metric/imperial, coordinate format, theme, refresh rate, language)
-and saved places persist in `localStorage`.
-
-## Language
-
-English, German and Polish are built in. A small pill in the top corner of
-the sign-in screen and another next to the theme toggle in the app's own
-header — the two places you'd look for it, signed out or in — cycle through
-the three; the choice is remembered in `localStorage` and applies everywhere
-at once, including error messages, toasts, the weather description, and
-banners, not just the static labels. It defaults to the browser's own
-language when that's one of the three, English otherwise. Adding a fourth
-language means adding one more object to the dictionary in `i18n.js` — no
-other file needs to change, since every other file asks for text by key
-rather than holding any of its own.
+Preferences (metric/imperial, coordinate format, theme, refresh rate) and saved
+places persist in `localStorage`.
 
 ## How it's built
 
-Five source files plus a small set of icon assets, no dependencies, no toolchain:
+Four source files plus a small set of icon assets, no dependencies, no toolchain:
 
 - `index.html` — structure
 - `styles.css` — light/dark theming via CSS custom properties. The map is
@@ -153,10 +140,6 @@ Five source files plus a small set of icon assets, no dependencies, no toolchain
   (drawn twice, casing under line, so it stays legible over any background)
 - `app.js` — geolocation, formatting, trip maths, storage, and UI wiring
 - `auth.js` — the sign-in gate; see **Accounts** below
-- `i18n.js` — the English/German/Polish dictionary and the `t(key, vars)`
-  lookup every other file calls for user-facing text; also walks the
-  `data-i18n*` attributes in `index.html` to translate static markup, and
-  re-applies on the fly when the language changes
 - `firebase-config.js` — your own Firebase project's config, if you set one up
 
 `MiniMap` exists so the app has no mapping-library dependency. It covers what

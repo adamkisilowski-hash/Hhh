@@ -11,9 +11,6 @@
   var STORE_TRIP = 'whereabouts.trip';
   var EARTH_RADIUS = 6371008.8; // metres, IUGG mean radius
 
-  var I18N = window.WhereaboutsI18n;
-  var t = I18N.t;
-
   var $ = function (id) { return document.getElementById(id); };
 
   var state = {
@@ -52,19 +49,17 @@
 
   // WMO weather codes, as used by Open-Meteo. Collapsed to the common cases —
   // exact sub-variety (e.g. which of three fog codes) isn't worth showing.
-  // The description is an i18n key rather than literal text, so it's shown
-  // in whichever language is active, including after a language switch.
   var WEATHER_CODES = {
-    0: ['weather.clearSky', '☀️'], 1: ['weather.mainlyClear', '🌤️'], 2: ['weather.partlyCloudy', '⛅'], 3: ['weather.overcast', '☁️'],
-    45: ['weather.fog', '🌫️'], 48: ['weather.fog', '🌫️'],
-    51: ['weather.lightDrizzle', '🌦️'], 53: ['weather.drizzle', '🌦️'], 55: ['weather.denseDrizzle', '🌦️'],
-    56: ['weather.freezingDrizzle', '🌧️'], 57: ['weather.freezingDrizzle', '🌧️'],
-    61: ['weather.lightRain', '🌧️'], 63: ['weather.rain', '🌧️'], 65: ['weather.heavyRain', '🌧️'],
-    66: ['weather.freezingRain', '🌨️'], 67: ['weather.freezingRain', '🌨️'],
-    71: ['weather.lightSnow', '🌨️'], 73: ['weather.snow', '🌨️'], 75: ['weather.heavySnow', '❄️'], 77: ['weather.snowGrains', '🌨️'],
-    80: ['weather.rainShowers', '🌦️'], 81: ['weather.rainShowers', '🌦️'], 82: ['weather.violentShowers', '⛈️'],
-    85: ['weather.snowShowers', '🌨️'], 86: ['weather.snowShowers', '🌨️'],
-    95: ['weather.thunderstorm', '⛈️'], 96: ['weather.thunderstormHail', '⛈️'], 99: ['weather.thunderstormHail', '⛈️']
+    0: ['Clear sky', '☀️'], 1: ['Mainly clear', '🌤️'], 2: ['Partly cloudy', '⛅'], 3: ['Overcast', '☁️'],
+    45: ['Fog', '🌫️'], 48: ['Fog', '🌫️'],
+    51: ['Light drizzle', '🌦️'], 53: ['Drizzle', '🌦️'], 55: ['Dense drizzle', '🌦️'],
+    56: ['Freezing drizzle', '🌧️'], 57: ['Freezing drizzle', '🌧️'],
+    61: ['Light rain', '🌧️'], 63: ['Rain', '🌧️'], 65: ['Heavy rain', '🌧️'],
+    66: ['Freezing rain', '🌨️'], 67: ['Freezing rain', '🌨️'],
+    71: ['Light snow', '🌨️'], 73: ['Snow', '🌨️'], 75: ['Heavy snow', '❄️'], 77: ['Snow grains', '🌨️'],
+    80: ['Rain showers', '🌦️'], 81: ['Rain showers', '🌦️'], 82: ['Violent showers', '⛈️'],
+    85: ['Snow showers', '🌨️'], 86: ['Snow showers', '🌨️'],
+    95: ['Thunderstorm', '⛈️'], 96: ['Thunderstorm (hail)', '⛈️'], 99: ['Thunderstorm (hail)', '⛈️']
   };
 
   var map;
@@ -180,11 +175,11 @@
 
   function relativeTime(ts) {
     var secs = Math.round((Date.now() - ts) / 1000);
-    if (secs < 5) return t('time.justNow');
-    if (secs < 60) return t('time.secsAgo', { n: secs });
-    if (secs < 3600) return t('time.minAgo', { n: Math.round(secs / 60) });
-    if (secs < 86400) return t('time.hAgo', { n: Math.round(secs / 3600) });
-    return new Date(ts).toLocaleDateString(I18N.getLang());
+    if (secs < 5) return 'just now';
+    if (secs < 60) return secs + 's ago';
+    if (secs < 3600) return Math.round(secs / 60) + ' min ago';
+    if (secs < 86400) return Math.round(secs / 3600) + ' h ago';
+    return new Date(ts).toLocaleDateString();
   }
 
   var toastTimer = null;
@@ -275,7 +270,7 @@
     try {
       localStorage.setItem(STORE_PLACES, JSON.stringify(state.places));
     } catch (e) {
-      toast(t('toast.storageBlocked'));
+      toast('Could not save — storage is full or blocked.');
     }
   }
 
@@ -302,23 +297,23 @@
   function geoErrorMessage(err) {
     switch (err.code) {
       case err.PERMISSION_DENIED:
-        return t('banner.geo.permissionDenied');
+        return 'Location permission denied. Enable it for this site in your browser settings, then try again.';
       case err.POSITION_UNAVAILABLE:
-        return t('banner.geo.unavailable');
+        return 'Your position is unavailable right now. Try moving somewhere with a clearer view of the sky.';
       case err.TIMEOUT:
-        return t('banner.geo.timeout');
+        return 'Timed out waiting for a fix. Try again.';
       default:
-        return err.message || t('banner.geo.generic');
+        return err.message || 'Could not get your location.';
     }
   }
 
   function preflight() {
     if (!('geolocation' in navigator)) {
-      banner(t('banner.geoUnsupported'), 'error');
+      banner('This browser does not support geolocation.', 'error');
       return false;
     }
     if (!window.isSecureContext) {
-      banner(t('banner.needsSecureContext'), 'error');
+      banner('Geolocation needs a secure context. Open this page over https:// or from http://localhost.', 'error');
       return false;
     }
     return true;
@@ -405,7 +400,7 @@
     // real fix put it.
     if (state.position) {
       var c = state.position.coords;
-      map.setMarker('me', c.latitude, c.longitude, 'mm-marker-me', t('now.youAreHere'));
+      map.setMarker('me', c.latitude, c.longitude, 'mm-marker-me', 'You are here');
       map.setAccuracy(c.latitude, c.longitude, c.accuracy);
     }
   }
@@ -422,7 +417,7 @@
     // freeze rather than compound a guess on top of a guess.
     if (elapsed <= 0 || elapsed > 20) return;
     var dest = destinationPoint(c.latitude, c.longitude, c.heading, c.speed * elapsed);
-    map.setMarker('me', dest.lat, dest.lng, 'mm-marker-me', t('now.youAreHere'));
+    map.setMarker('me', dest.lat, dest.lng, 'mm-marker-me', 'You are here');
     map.setAccuracy(dest.lat, dest.lng, c.accuracy);
     if (state.followMe) map.setView(dest.lat, dest.lng, null);
   }
@@ -462,7 +457,7 @@
   }
 
   function rateLabel() {
-    return t('footer.every', { n: (RATES[state.prefs.rate] || RATES.turbo) / 1000 });
+    return 'every ' + (RATES[state.prefs.rate] || RATES.turbo) / 1000 + 's';
   }
 
   function syncPoll() {
@@ -495,8 +490,8 @@
     var btn = $('live-toggle');
     btn.classList.toggle('is-live', on && state.watchId != null);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.title = on ? t('now.liveTitleOn') : t('now.liveTitleOff');
-    $('live-label').textContent = on ? t('now.live') : t('now.paused');
+    btn.title = on ? 'Location updates automatically — tap to pause' : 'Updates paused — tap to resume';
+    $('live-label').textContent = on ? 'Live' : 'Paused';
     renderSheetSummary();
   }
 
@@ -504,16 +499,16 @@
     state.tracking = true;
     if (!startWatch()) { state.tracking = false; return; }
     state.trackStart = state.trackStart || Date.now();
-    $('track-toggle').textContent = t('trip.stopTracking');
+    $('track-toggle').textContent = 'Stop tracking';
     $('track-toggle').classList.add('is-active');
     renderLive();
     saveTrip();
-    toast(t('toast.recordingTrip'));
+    toast('Recording trip');
   }
 
   function stopTracking() {
     state.tracking = false;
-    $('track-toggle').textContent = t('trip.startTracking');
+    $('track-toggle').textContent = 'Start tracking';
     $('track-toggle').classList.remove('is-active');
     // Live updates outlive the trip, so only drop the watch if nothing wants it.
     syncWatch();
@@ -544,11 +539,11 @@
   }
 
   function precisionOf(accuracy) {
-    if (accuracy == null) return { key: 'unknown', label: t('precision.unknown') };
-    if (accuracy <= 20) return { key: 'precise', label: t('precision.precise') };
-    if (accuracy <= 75) return { key: 'good', label: t('precision.good') };
-    if (accuracy <= 500) return { key: 'approx', label: t('precision.approx') };
-    return { key: 'coarse', label: t('precision.coarse') };
+    if (accuracy == null) return { key: 'unknown', label: 'Accuracy unknown' };
+    if (accuracy <= 20) return { key: 'precise', label: 'Precise' };
+    if (accuracy <= 75) return { key: 'good', label: 'Good' };
+    if (accuracy <= 500) return { key: 'approx', label: 'Approximate' };
+    return { key: 'coarse', label: 'Coarse — network fix' };
   }
 
   // Only worth saying once, and only when the fix is bad enough to act on.
@@ -556,8 +551,9 @@
     if (state.advisedOnPrecision || accuracy == null || accuracy <= 500) return;
     state.advisedOnPrecision = true;
     var ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    banner(t('precision.advice', { acc: formatDistance(accuracy) }) +
-      (ios ? t('precision.adviceIOS') : t('precision.adviceOther')), 'precision');
+    banner('This fix is ±' + formatDistance(accuracy) + ', which means it came from the network rather than GPS. ' +
+      (ios ? 'Check Settings → Privacy → Location Services → your browser → Precise Location.'
+           : 'Check your device location settings and allow precise location for this site.'), 'precision');
   }
 
   /* Nominatim is a free, shared public service, so this stays well inside
@@ -639,11 +635,11 @@
   function renderWeather() {
     var row = $('weather-row');
     if (!state.weather) { row.hidden = true; return; }
-    var info = WEATHER_CODES[state.weather.code] || [null, '🌡️'];
+    var info = WEATHER_CODES[state.weather.code] || ['—', '🌡️'];
     var tempC = state.weather.tempC;
     var tempText = isMetric() ? Math.round(tempC) + '°C' : Math.round(tempC * 9 / 5 + 32) + '°F';
     $('weather-icon').textContent = info[1];
-    $('weather-text').textContent = tempText + ' · ' + (info[0] ? t(info[0]) : '—');
+    $('weather-text').textContent = tempText + ' · ' + info[0];
     row.hidden = false;
   }
 
@@ -664,7 +660,7 @@
     maybeLookUpStreet(point.lat, point.lng);
     maybeFetchWeather(point.lat, point.lng);
 
-    map.setMarker('me', point.lat, point.lng, 'mm-marker-me', t('now.youAreHere'));
+    map.setMarker('me', point.lat, point.lng, 'mm-marker-me', 'You are here');
     map.setAccuracy(point.lat, point.lng, c.accuracy);
     if (recenter || state.followMe) {
       // An explicit locate reframes the map; a passive watch update just slides.
@@ -730,8 +726,8 @@
     $('heading').textContent = (c.heading != null && !isNaN(c.heading))
       ? Math.round(c.heading) + '° ' + compassPoint(c.heading)
       : '—';
-    $('fix-age').textContent = t('now.fixFrom', { time: relativeTime(pos.timestamp) }) +
-      (state.tracking ? t('now.recordingTrip') : '');
+    $('fix-age').textContent = 'Fix from ' + relativeTime(pos.timestamp) +
+      (state.tracking ? ' · recording trip' : '');
 
     var quality = precisionOf(c.accuracy);
     $('precision').dataset.quality = quality.key;
@@ -757,7 +753,7 @@
     if (!dot || !text) return;
     dot.classList.toggle('is-live', !!(state.prefs.live && state.watchId != null));
     if (!state.position) {
-      text.textContent = state.locateBusy ? t('sheet.findingYou') : t('sheet.locationUnavailable');
+      text.textContent = state.locateBusy ? 'Finding you…' : 'Location unavailable';
       return;
     }
     var c = state.position.coords;
@@ -805,7 +801,7 @@
             '<span class="place-meta">' + escapeHtml(meta) + '</span>' +
             '<span class="place-coords">' + place.lat.toFixed(5) + ', ' + place.lng.toFixed(5) + '</span>' +
           '</button>' +
-          '<button class="place-del" type="button" title="' + escapeHtml(t('places.deleteTitle')) + '" aria-label="' + escapeHtml(t('places.deleteAria', { name: place.name })) + '">×</button>';
+          '<button class="place-del" type="button" title="Delete" aria-label="Delete ' + escapeHtml(place.name) + '">×</button>';
 
         li.querySelector('.place-main').addEventListener('click', function () {
           state.followMe = false;
@@ -816,19 +812,11 @@
           savePlaces();
           syncPlaceMarkers();
           renderPlaces();
-          toast(t('toast.deleted', { name: place.name }));
+          toast('Deleted "' + place.name + '"');
         });
 
         list.appendChild(li);
       });
-  }
-
-  // Static across a render, but not across a language switch — set once
-  // rather than rebuilt on every renderPlaces() call, and kept as innerHTML
-  // only because the <strong> mid-sentence can't be a plain data-i18n key.
-  function applyPlacesEmptyText() {
-    $('places-empty').innerHTML = escapeHtml(t('places.emptyPrefix')) +
-      '<strong>' + escapeHtml(t('places.emptyStrong')) + '</strong>' + escapeHtml(t('places.emptySuffix'));
   }
 
   function syncPlaceMarkers() {
@@ -897,7 +885,7 @@
     // rather than leaving a toggle that silently does nothing.
     setTimeout(function () {
       if (state.headingUp && !state.compassSeen) {
-        toast(t('toast.noCompass'));
+        toast('No compass on this device.');
         setHeadingUp(false);
       }
     }, 2500);
@@ -924,10 +912,10 @@
           typeof DeviceOrientationEvent.requestPermission === 'function') {
         DeviceOrientationEvent.requestPermission().then(function (result) {
           if (result === 'granted') attachCompass();
-          else { toast(t('toast.compassDenied')); setHeadingUp(false); }
-        }).catch(function () { toast(t('toast.compassUnavailable')); setHeadingUp(false); });
+          else { toast('Compass permission denied.'); setHeadingUp(false); }
+        }).catch(function () { toast('Compass unavailable.'); setHeadingUp(false); });
       } else if (typeof DeviceOrientationEvent === 'undefined') {
-        toast(t('toast.noCompassSupport'));
+        toast('This browser has no compass support.');
         state.headingUp = false;
         state.prefs.headingUp = false;
         map.setRotationEnabled(false);
@@ -945,7 +933,7 @@
     var btn = $('compass');
     btn.classList.toggle('is-active', !!state.headingUp);
     btn.setAttribute('aria-pressed', state.headingUp ? 'true' : 'false');
-    btn.title = state.headingUp ? t('controls.compassOn') : t('controls.compassOff');
+    btn.title = state.headingUp ? 'Heading up — tap for north up' : 'North up — tap to follow your heading';
     // The needle keeps pointing at true north as the map turns beneath it.
     $('compass-needle').style.transform = 'rotate(' + (-(map ? map.getBearing() : 0)) + 'deg)';
   }
@@ -963,7 +951,7 @@
     $('hud').hidden = !on || !state.position;
     var btn = $('fullscreen');
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.title = on ? t('controls.fullscreenExit') : t('controls.fullscreenEnter');
+    btn.title = on ? 'Exit full screen' : 'Full screen map';
     // The stage resized, so the map needs to refill it.
     if (map) map.render();
   }
@@ -1073,22 +1061,7 @@
     savePrefs();
     $('sheet').dataset.state = on ? 'expanded' : 'collapsed';
     $('sheet-handle').setAttribute('aria-expanded', on ? 'true' : 'false');
-    $('sheet-handle').setAttribute('aria-label', on ? t('sheet.collapse') : t('sheet.expand'));
-  }
-
-  // The handful of pill buttons whose visible label is the current value of
-  // a preference (theme, units, coordinate format, refresh rate) rather than
-  // a fixed caption — translated afresh on every change, including a bare
-  // language switch, so it never freezes in the language it was drawn in.
-  var COORD_KEYS = { decimal: 'toggles.coordDecimal', dms: 'toggles.coordDms' };
-  var UNIT_KEYS = { metric: 'toggles.unitsMetric', imperial: 'toggles.unitsImperial' };
-  var THEME_KEYS = { auto: 'toggles.themeAuto', light: 'toggles.themeLight', dark: 'toggles.themeDark' };
-
-  function applyToggleLabels() {
-    $('coord-format').textContent = t(COORD_KEYS[state.prefs.coordFormat]);
-    $('unit-toggle').textContent = t(UNIT_KEYS[state.prefs.units]);
-    $('theme-toggle').textContent = t(THEME_KEYS[state.prefs.theme]);
-    $('rate-toggle').textContent = rateLabel();
+    $('sheet-handle').setAttribute('aria-label', on ? 'Collapse details' : 'Expand details');
   }
 
   function wireUI() {
@@ -1119,15 +1092,15 @@
 
     $('coord-format').addEventListener('click', function () {
       state.prefs.coordFormat = state.prefs.coordFormat === 'decimal' ? 'dms' : 'decimal';
+      this.textContent = state.prefs.coordFormat;
       savePrefs();
-      applyToggleLabels();
       renderNow();
     });
 
     $('unit-toggle').addEventListener('click', function () {
       state.prefs.units = isMetric() ? 'imperial' : 'metric';
+      this.textContent = state.prefs.units;
       savePrefs();
-      applyToggleLabels();
       renderNow();
       renderTrip();
       renderPlaces();
@@ -1137,8 +1110,8 @@
     $('rate-toggle').addEventListener('click', function () {
       var order = ['turbo', 'fast', 'normal', 'saver'];
       state.prefs.rate = order[(order.indexOf(state.prefs.rate) + 1) % order.length];
+      this.textContent = rateLabel();
       savePrefs();
-      applyToggleLabels();
       syncPoll();
       if (state.prefs.live || state.tracking) pollNow();
     });
@@ -1146,20 +1119,18 @@
     $('theme-toggle').addEventListener('click', function () {
       var order = ['auto', 'light', 'dark'];
       state.prefs.theme = order[(order.indexOf(state.prefs.theme) + 1) % order.length];
+      this.textContent = state.prefs.theme;
       savePrefs();
-      applyToggleLabels();
       applyTheme();
     });
 
-    $('lang-toggle').addEventListener('click', function () { I18N.cycleLang(); });
-
     $('copy').addEventListener('click', function () {
-      if (!state.position) { toast(t('toast.noFix')); return; }
+      if (!state.position) { toast('No fix yet.'); return; }
       var c = state.position.coords;
       var text = c.latitude.toFixed(6) + ', ' + c.longitude.toFixed(6);
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(
-          function () { toast(t('toast.copied', { text: text })); },
+          function () { toast('Copied ' + text); },
           function () { toast(text); }
         );
       } else {
@@ -1168,13 +1139,13 @@
     });
 
     $('share').addEventListener('click', function () {
-      if (!state.position) { toast(t('toast.noFix')); return; }
+      if (!state.position) { toast('No fix yet.'); return; }
       var c = state.position.coords;
       var geoUrl = 'https://www.openstreetmap.org/?mlat=' + c.latitude.toFixed(6) +
                    '&mlon=' + c.longitude.toFixed(6) + '#map=17/' +
                    c.latitude.toFixed(5) + '/' + c.longitude.toFixed(5);
       if (navigator.share) {
-        navigator.share({ title: t('now.shareTitle'), text: t('now.shareText'), url: geoUrl })
+        navigator.share({ title: 'My location', text: 'Here I am', url: geoUrl })
           .catch(function () { /* user dismissed the sheet */ });
       } else {
         window.open(geoUrl, '_blank', 'noopener');
@@ -1182,10 +1153,10 @@
     });
 
     $('save-place').addEventListener('click', function () {
-      if (!state.position) { toast(t('toast.findLocationFirst')); return; }
-      var name = prompt(t('now.namePlacePrompt'));
+      if (!state.position) { toast('Find your location first.'); return; }
+      var name = prompt('Name this place');
       if (name == null) return;
-      name = name.trim() || t('now.unnamedPlace');
+      name = name.trim() || 'Unnamed place';
       var c = state.position.coords;
       state.places.push({
         id: String(Date.now()) + Math.random().toString(36).slice(2, 6),
@@ -1198,13 +1169,13 @@
       savePlaces();
       syncPlaceMarkers();
       renderPlaces();
-      toast(t('toast.saved', { name: name }));
+      toast('Saved "' + name + '"');
     });
 
     $('jump-form').addEventListener('submit', function (e) {
       e.preventDefault();
       var parsed = parseCoordInput($('jump-input').value);
-      if (!parsed) { toast(t('toast.enterCoords')); return; }
+      if (!parsed) { toast('Enter coordinates as "lat, lng".'); return; }
       state.followMe = false;
       map.setView(parsed.lat, parsed.lng, 15);
     });
@@ -1238,7 +1209,7 @@
 
     $('live-toggle').addEventListener('click', function () {
       if (state.tracking && state.prefs.live) {
-        toast(t('toast.stopTripFirst'));
+        toast('Stop the trip recording first.');
         return;
       }
       setLive(!state.prefs.live);
@@ -1247,7 +1218,7 @@
     $('track-toggle').addEventListener('click', function () {
       if (state.tracking) {
         stopTracking();
-        toast(state.prefs.live ? t('toast.tripSavedStillLive') : t('toast.tripStopped'));
+        toast(state.prefs.live ? 'Trip saved · still live' : 'Trip recording stopped');
       } else {
         startTracking();
       }
@@ -1261,17 +1232,17 @@
       map.setTrack([]);
       renderTrip();
       saveTrip();
-      toast(t('toast.tripCleared'));
+      toast('Trip cleared');
     });
 
     $('trip-export').addEventListener('click', function () {
-      if (state.track.length < 2) { toast(t('toast.notEnoughPoints')); return; }
+      if (state.track.length < 2) { toast('Not enough track points yet.'); return; }
       download('whereabouts-' + new Date().toISOString().slice(0, 19).replace(/:/g, '') + '.gpx',
                toGPX(), 'application/gpx+xml');
     });
 
     $('places-export').addEventListener('click', function () {
-      if (!state.places.length) { toast(t('toast.noPlacesToExport')); return; }
+      if (!state.places.length) { toast('No places to export.'); return; }
       download('whereabouts-places.json', JSON.stringify(state.places, null, 2), 'application/json');
     });
 
@@ -1280,7 +1251,7 @@
     map.el.addEventListener('error', function (e) {
       if (!e.target || !e.target.classList.contains('mm-tile')) return;
       if (++tileErrors === 4) {
-        banner(t('banner.tilesOffline'), 'warn');
+        banner('Map tiles could not load — you may be offline. Coordinates and tracking still work.', 'warn');
       }
     }, true);
 
@@ -1314,8 +1285,10 @@
       else if (dark.addListener) dark.addListener(onSchemeChange);
     }
 
-    applyToggleLabels();
-    applyPlacesEmptyText();
+    $('coord-format').textContent = state.prefs.coordFormat;
+    $('unit-toggle').textContent = state.prefs.units;
+    $('theme-toggle').textContent = state.prefs.theme;
+    $('rate-toggle').textContent = rateLabel();
 
     // Remembers where you left the sheet and which tab was open.
     activateTab(state.prefs.activeTab || 'now');
@@ -1327,39 +1300,22 @@
     renderCompass();
     // Heading-up needs a gesture on iOS, so a saved preference re-arms the
     // control rather than silently starting the compass.
-    if (state.prefs.headingUp) toast(t('toast.tapCompass'));
+    if (state.prefs.headingUp) toast('Tap the compass to follow your heading.');
     syncPlaceMarkers();
     renderPlaces();
     renderTrip();
-
-    // A language switch needs to redraw every piece of currently-visible
-    // dynamic text, not just the static data-i18n markup i18n.js already
-    // handles on its own — anything a render* function or a toggle button
-    // set imperatively needs a second pass in the new language.
-    I18N.onChange(function () {
-      applyToggleLabels();
-      applyPlacesEmptyText();
-      renderLive();
-      renderCompass();
-      renderWeather();
-      renderPlaces();
-      if (state.position) renderNow(); else renderSheetSummary();
-      renderTrip();
-      setImmersive(state.immersive);
-      $('sheet-handle').setAttribute('aria-label', state.sheetExpanded ? t('sheet.collapse') : t('sheet.expand'));
-    });
 
     // A trip in progress (or just finished but not cleared) survives a
     // reload — restore its polyline and the recording button's own state;
     // syncWatch() below picks the watch back up if it was still recording.
     if (state.track.length) map.setTrack(state.track);
     if (state.tracking) {
-      $('track-toggle').textContent = t('trip.stopTracking');
+      $('track-toggle').textContent = 'Stop tracking';
       $('track-toggle').classList.add('is-active');
     }
 
     if (!window.isSecureContext) {
-      banner(t('banner.needsSecureContext'), 'warn');
+      banner('Geolocation needs a secure context. Open this page over https:// or from http://localhost.', 'warn');
     }
 
     // Keep "fix from …" and the trip clock honest without extra fixes.

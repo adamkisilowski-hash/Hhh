@@ -127,6 +127,15 @@
       'places.noAddressResults': 'No matches found for that address.',
       'places.addressSearchFailed': 'Could not search for that address. Check your connection.',
 
+      'route.navigate': 'Navigate',
+      'route.navigateAria': 'Navigate to {name}',
+      'route.stop': 'Stop navigating',
+      'route.summary': '{name} · {distance} · {duration}',
+      'route.etaMin': '{n} min',
+      'route.etaHourMin': '{h}h {m}min',
+      'route.etaHour': '{h}h',
+      'route.failed': 'Could not calculate a route. Check your connection.',
+
       'controls.zoomIn': 'Zoom in',
       'controls.zoomOut': 'Zoom out',
       'controls.recenter': 'Find and center on me',
@@ -303,6 +312,15 @@
       'places.noAddressResults': 'Keine Treffer für diese Adresse.',
       'places.addressSearchFailed': 'Adresse konnte nicht gesucht werden. Prüfe deine Verbindung.',
 
+      'route.navigate': 'Navigieren',
+      'route.navigateAria': 'Zu {name} navigieren',
+      'route.stop': 'Navigation beenden',
+      'route.summary': '{name} · {distance} · {duration}',
+      'route.etaMin': '{n} Min.',
+      'route.etaHourMin': '{h} Std. {m} Min.',
+      'route.etaHour': '{h} Std.',
+      'route.failed': 'Route konnte nicht berechnet werden. Prüfe deine Verbindung.',
+
       'controls.zoomIn': 'Vergrößern',
       'controls.zoomOut': 'Verkleinern',
       'controls.recenter': 'Mich finden und zentrieren',
@@ -478,6 +496,15 @@
       'places.enterAddress': 'Najpierw podaj adres.',
       'places.noAddressResults': 'Nie znaleziono wyników dla tego adresu.',
       'places.addressSearchFailed': 'Nie udało się wyszukać adresu. Sprawdź połączenie.',
+
+      'route.navigate': 'Nawiguj',
+      'route.navigateAria': 'Nawiguj do {name}',
+      'route.stop': 'Zatrzymaj nawigację',
+      'route.summary': '{name} · {distance} · {duration}',
+      'route.etaMin': '{n} min',
+      'route.etaHourMin': '{h} godz. {m} min',
+      'route.etaHour': '{h} godz.',
+      'route.failed': 'Nie udało się obliczyć trasy. Sprawdź połączenie.',
 
       'controls.zoomIn': 'Powiększ',
       'controls.zoomOut': 'Pomniejsz',

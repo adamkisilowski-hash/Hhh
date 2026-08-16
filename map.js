@@ -53,6 +53,7 @@
     this.listeners = { move: [], click: [] };
     this.tiles = Object.create(null);
     this.track = [];
+    this.route = [];
 
     this.tileLayer = document.createElement('div');
     this.tileLayer.className = 'mm-tiles';
@@ -71,6 +72,20 @@
     this.trackPath.setAttribute('class', 'mm-track');
     this.trackPath.setAttribute('fill', 'none');
     this.overlay.appendChild(this.trackPath);
+
+    // A planned route sits visually above the recorded track — dashed
+    // rather than solid, so the two read as different things (where you're
+    // headed vs. where you've actually been) even in the rare case both
+    // are on screen at once, without needing a whole second color.
+    this.routeCasing = document.createElementNS(SVG_NS, 'path');
+    this.routeCasing.setAttribute('class', 'mm-route-casing');
+    this.routeCasing.setAttribute('fill', 'none');
+    this.overlay.appendChild(this.routeCasing);
+
+    this.routePath = document.createElementNS(SVG_NS, 'path');
+    this.routePath.setAttribute('class', 'mm-route');
+    this.routePath.setAttribute('fill', 'none');
+    this.overlay.appendChild(this.routePath);
 
     this.accuracyCircle = document.createElementNS(SVG_NS, 'circle');
     this.accuracyCircle.setAttribute('class', 'mm-accuracy');
@@ -197,6 +212,36 @@
 
   MiniMap.prototype.getView = function () {
     return { lat: this.center.lat, lng: this.center.lng, zoom: this.zoom };
+  };
+
+  // Centers on and zooms to fit every point in the list — used to frame a
+  // whole route (start to destination) rather than just recentering on one
+  // end of it. Walks zoom levels from the top down since world-pixel size
+  // scales with zoom in a way that isn't worth solving for algebraically
+  // for a handful of integer candidates.
+  MiniMap.prototype.fitBounds = function (points, paddingPx) {
+    if (!points || !points.length) return this;
+    var pad = paddingPx != null ? paddingPx : 40;
+    var minLat = points[0].lat, maxLat = points[0].lat;
+    var minLng = points[0].lng, maxLng = points[0].lng;
+    for (var i = 1; i < points.length; i++) {
+      var p = points[i];
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lng < minLng) minLng = p.lng;
+      if (p.lng > maxLng) maxLng = p.lng;
+    }
+    var s = this.size();
+    var zoom = MIN_ZOOM;
+    for (var z = MAX_ZOOM; z >= MIN_ZOOM; z--) {
+      var nw = project(maxLat, minLng, z);
+      var se = project(minLat, maxLng, z);
+      if (Math.abs(se.x - nw.x) <= s.w - pad * 2 && Math.abs(se.y - nw.y) <= s.h - pad * 2) {
+        zoom = z;
+        break;
+      }
+    }
+    return this.setView((minLat + maxLat) / 2, (minLng + maxLng) / 2, zoom);
   };
 
   MiniMap.prototype.zoomBy = function (delta, anchor) {
@@ -404,6 +449,25 @@
       this.trackPath.setAttribute('d', '');
       this.trackCasing.setAttribute('d', '');
     }
+
+    if (this.route.length > 1) {
+      var rd = '';
+      for (var j = 0; j < this.route.length; j++) {
+        var rp = this.latLngToPoint(this.route[j].lat, this.route[j].lng);
+        rd += (j === 0 ? 'M' : 'L') + (rp.x + pad).toFixed(1) + ' ' + (rp.y + pad).toFixed(1);
+      }
+      this.routePath.setAttribute('d', rd);
+      this.routeCasing.setAttribute('d', rd);
+    } else {
+      this.routePath.setAttribute('d', '');
+      this.routeCasing.setAttribute('d', '');
+    }
+  };
+
+  MiniMap.prototype.setRoute = function (points) {
+    this.route = points || [];
+    this._drawOverlay();
+    return this;
   };
 
   // Swapping basemaps (light <-> dark) drops every cached tile, since the old

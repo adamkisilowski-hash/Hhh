@@ -16,6 +16,16 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
+  // Navigation is optional and off by default, same pattern as accounts —
+  // the "Navigate" option on a saved place stays hidden entirely until a
+  // real OpenRouteService key is supplied, rather than showing a control
+  // that would just fail every time it's pressed.
+  var ORS_CONFIG = window.WHEREABOUTS_ORS_CONFIG || {};
+  var ORS_CONFIGURED = !!(ORS_CONFIG.apiKey && ORS_CONFIG.apiKey !== 'PLACEHOLDER');
+  // Walking, to match the app's own pace stat and trip-tracking framing —
+  // change to 'driving-car' or 'cycling-regular' for a different default.
+  var ROUTE_PROFILE = 'foot-walking';
+
   var state = {
     position: null,      // most recent GeolocationPosition
     watchId: null,
@@ -47,7 +57,9 @@
     streetLookupPoint: null,
     weather: null,
     weatherAt: 0,
-    weatherPoint: null
+    weatherPoint: null,
+    route: null,
+    routeBusy: false
   };
 
   // WMO weather codes, as used by Open-Meteo. Collapsed to the common cases —
@@ -246,6 +258,13 @@
       'style="transform:rotate(' + Math.round(bearingDeg) + 'deg)">' +
       '<path d="M12 2.5 L17 15.5 L12 12.7 L7 15.5 Z" fill="currentColor"/></svg>';
   }
+
+  // A compact "navigate" glyph — the classic location-arrow triangle —
+  // for the per-place Navigate button. Plain currentColor, matching the
+  // other icon buttons in the app rather than introducing its own color.
+  var NAV_ICON_SVG =
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 L19 21 L12 17 L5 21 Z"/></svg>';
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -679,6 +698,79 @@
     row.hidden = false;
   }
 
+  /* --------------------------------------------------------- navigation */
+
+  /* A route preview, not turn-by-turn guidance: one request when you tap
+   * Navigate, drawn once, shown with a distance/ETA summary. It doesn't
+   * reroute as you move — the live position dot keeps updating exactly as
+   * it always has, entirely independently of whatever route is on screen. */
+
+  function formatEta(seconds) {
+    if (seconds == null || isNaN(seconds)) return '—';
+    var mins = Math.round(seconds / 60);
+    if (mins < 60) return t('route.etaMin', { n: mins });
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return m ? t('route.etaHourMin', { h: h, m: m }) : t('route.etaHour', { h: h });
+  }
+
+  function startNavigation(place) {
+    if (!state.position) { toast(t('toast.findLocationFirst')); return; }
+    if (state.routeBusy) return;
+    state.routeBusy = true;
+    var c = state.position.coords;
+    var url = 'https://api.openrouteservice.org/v2/directions/' + ROUTE_PROFILE + '/geojson';
+    fetch(url, {
+      method: 'POST',
+      headers: { Authorization: ORS_CONFIG.apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coordinates: [[c.longitude, c.latitude], [place.lng, place.lat]] })
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('route request failed: ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        var feature = data && data.features && data.features[0];
+        var coords = feature && feature.geometry && feature.geometry.coordinates;
+        if (!coords || coords.length < 2) throw new Error('no route geometry');
+        var points = coords.map(function (pair) { return { lat: pair[1], lng: pair[0] }; });
+        var summary = feature.properties && feature.properties.summary;
+        state.route = {
+          place: place,
+          points: points,
+          distance: summary ? summary.distance : null,
+          duration: summary ? summary.duration : null
+        };
+        map.setRoute(points);
+        map.fitBounds(points, 56);
+        renderRoute();
+        // The summary lives in the Now tab, same as weather/street — jump
+        // there so tapping Navigate from Places actually shows it, rather
+        // than leaving it correctly populated but out of sight.
+        activateTab('now');
+        state.prefs.activeTab = 'now';
+        savePrefs();
+      })
+      .catch(function () { toast(t('route.failed')); })
+      .finally(function () { state.routeBusy = false; });
+  }
+
+  function clearNavigation() {
+    state.route = null;
+    map.setRoute([]);
+    renderRoute();
+  }
+
+  function renderRoute() {
+    var row = $('route-row');
+    if (!state.route) { row.hidden = true; return; }
+    $('route-text').textContent = t('route.summary', {
+      name: state.route.place.name,
+      distance: formatDistance(state.route.distance),
+      duration: formatEta(state.route.duration)
+    });
+    row.hidden = false;
+  }
+
   function handlePosition(pos, recenter) {
     if (!recenter && isWorseFix(pos)) return;
     state.position = pos;
@@ -835,6 +927,11 @@
           ? formatDistance(distance(here, place)) + ' · ' + compassPoint(brg)
           : new Date(place.savedAt).toLocaleDateString(I18N.getLang());
         var arrow = brg != null ? waypointArrowSvg(brg) : '';
+        // Hidden entirely rather than shown-but-broken when navigation
+        // isn't configured — same call the account avatar makes for auth.
+        var navBtn = ORS_CONFIGURED
+          ? '<button class="place-nav" type="button" title="' + escapeHtml(t('route.navigate')) + '" aria-label="' + escapeHtml(t('route.navigateAria', { name: place.name })) + '">' + NAV_ICON_SVG + '</button>'
+          : '';
 
         li.innerHTML =
           '<button class="place-main" type="button">' +
@@ -842,12 +939,15 @@
             '<span class="place-meta">' + arrow + escapeHtml(meta) + '</span>' +
             '<span class="place-coords">' + place.lat.toFixed(5) + ', ' + place.lng.toFixed(5) + '</span>' +
           '</button>' +
+          navBtn +
           '<button class="place-del" type="button" title="' + escapeHtml(t('places.deleteTitle')) + '" aria-label="' + escapeHtml(t('places.deleteAria', { name: place.name })) + '">×</button>';
 
         li.querySelector('.place-main').addEventListener('click', function () {
           state.followMe = false;
           map.setView(place.lat, place.lng, 16);
         });
+        var navEl = li.querySelector('.place-nav');
+        if (navEl) navEl.addEventListener('click', function () { startNavigation(place); });
         li.querySelector('.place-del').addEventListener('click', function () {
           state.places = state.places.filter(function (p) { return p.id !== place.id; });
           savePlaces();
@@ -1361,6 +1461,8 @@
       download('whereabouts-places.json', JSON.stringify(state.places, null, 2), 'application/json');
     });
 
+    $('route-clear').addEventListener('click', clearNavigation);
+
     // Tile images fail silently; surface it once so a blank map isn't a mystery.
     var tileErrors = 0;
     map.el.addEventListener('error', function (e) {
@@ -1428,6 +1530,7 @@
       renderLive();
       renderCompass();
       renderWeather();
+      renderRoute();
       renderPlaces();
       if (state.position) renderNow(); else renderSheetSummary();
       renderTrip();

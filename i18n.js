@@ -1,0 +1,606 @@
+/* Whereabouts — translations (English, German, Polish).
+ *
+ * A plain classic script, loaded before app.js/auth.js, so both can call
+ * window.WhereaboutsI18n.t(key, vars) for any user-facing string. Static
+ * markup is translated by walking data-i18n[-title|-aria|-placeholder]
+ * attributes; anything generated at runtime (banners, toasts, labels that
+ * depend on state) goes through t() at the call site and is re-applied via
+ * onChange() when the language switches.
+ */
+(function () {
+  'use strict';
+
+  var STORE_LANG = 'whereabouts.lang';
+
+  var STRINGS = {
+    en: {
+      'auth.signIn': 'Sign in',
+      'auth.createAccount': 'Create account',
+      'auth.needAccount': 'Need an account? Register',
+      'auth.haveAccount': 'Have an account? Sign in',
+      'auth.forgotPassword': 'Forgot password?',
+      'auth.email': 'Email',
+      'auth.password': 'Password',
+      'auth.enterEmailFirst': 'Enter your email above first.',
+      'auth.resetSent': 'Password reset email sent — check your inbox.',
+      'auth.genericError': 'Something went wrong. Try again.',
+      'auth.err.invalidEmail': "That doesn't look like a valid email address.",
+      'auth.err.emailInUse': 'An account already exists for that email — try signing in instead.',
+      'auth.err.weakPassword': 'Password needs to be at least 6 characters.',
+      'auth.err.userNotFound': 'No account found for that email.',
+      'auth.err.wrongPassword': 'Wrong password.',
+      'auth.err.invalidCredential': 'Email or password is incorrect.',
+      'auth.err.missingPassword': 'Enter a password.',
+      'auth.err.tooManyRequests': 'Too many attempts — wait a bit and try again.',
+      'auth.err.networkFailed': 'Network error — check your connection.',
+
+      'account.account': 'Account',
+      'account.changePassword': 'Change password',
+      'account.signOut': 'Sign out',
+
+      'nav.now': 'Now',
+      'nav.trip': 'Trip',
+      'nav.places': 'Places',
+
+      'now.latitude': 'Latitude',
+      'now.longitude': 'Longitude',
+      'now.accuracy': 'Accuracy',
+      'now.altitude': 'Altitude',
+      'now.speed': 'Speed',
+      'now.heading': 'Heading',
+      'now.live': 'Live',
+      'now.paused': 'Paused',
+      'now.liveTitleOn': 'Location updates automatically — tap to pause',
+      'now.liveTitleOff': 'Updates paused — tap to resume',
+      'now.copy': 'Copy coordinates',
+      'now.share': 'Share',
+      'now.savePlace': 'Save this place',
+      'now.jumpSummary': 'Jump to coordinates',
+      'now.jumpAria': 'Latitude and longitude',
+      'now.go': 'Go',
+      'now.namePlacePrompt': 'Name this place',
+      'now.unnamedPlace': 'Unnamed place',
+      'now.fixFrom': 'Fix from {time}',
+      'now.recordingTrip': ' · recording trip',
+      'now.shareTitle': 'My location',
+      'now.shareText': 'Here I am',
+      'now.coordFormatTitle': 'Switch coordinate format',
+      'now.youAreHere': 'You are here',
+
+      'precision.waiting': 'Waiting for a fix',
+      'precision.precise': 'Precise',
+      'precision.good': 'Good',
+      'precision.approx': 'Approximate',
+      'precision.coarse': 'Coarse — network fix',
+      'precision.unknown': 'Accuracy unknown',
+      'precision.advice': 'This fix is ±{acc}, which means it came from the network rather than GPS. ',
+      'precision.adviceIOS': 'Check Settings → Privacy → Location Services → your browser → Precise Location.',
+      'precision.adviceOther': 'Check your device location settings and allow precise location for this site.',
+
+      'weather.clearSky': 'Clear sky',
+      'weather.mainlyClear': 'Mainly clear',
+      'weather.partlyCloudy': 'Partly cloudy',
+      'weather.overcast': 'Overcast',
+      'weather.fog': 'Fog',
+      'weather.lightDrizzle': 'Light drizzle',
+      'weather.drizzle': 'Drizzle',
+      'weather.denseDrizzle': 'Dense drizzle',
+      'weather.freezingDrizzle': 'Freezing drizzle',
+      'weather.lightRain': 'Light rain',
+      'weather.rain': 'Rain',
+      'weather.heavyRain': 'Heavy rain',
+      'weather.freezingRain': 'Freezing rain',
+      'weather.lightSnow': 'Light snow',
+      'weather.snow': 'Snow',
+      'weather.heavySnow': 'Heavy snow',
+      'weather.snowGrains': 'Snow grains',
+      'weather.rainShowers': 'Rain showers',
+      'weather.violentShowers': 'Violent showers',
+      'weather.snowShowers': 'Snow showers',
+      'weather.thunderstorm': 'Thunderstorm',
+      'weather.thunderstormHail': 'Thunderstorm (hail)',
+
+      'trip.startTracking': 'Start tracking',
+      'trip.stopTracking': 'Stop tracking',
+      'trip.distance': 'Distance',
+      'trip.duration': 'Duration',
+      'trip.avgSpeed': 'Avg speed',
+      'trip.pace': 'Pace',
+      'trip.topSpeed': 'Top speed',
+      'trip.points': 'Points',
+      'trip.climb': 'Climb',
+      'trip.note': "Tracking keeps the screen's location watch open and draws your path on the map. Nothing leaves your device.",
+      'trip.exportGpx': 'Export GPX',
+      'trip.clearTrip': 'Clear trip',
+
+      'places.emptyPrefix': 'No saved places yet. Find your location, then tap ',
+      'places.emptyStrong': 'Save this place',
+      'places.emptySuffix': '.',
+      'places.exportJson': 'Export JSON',
+      'places.deleteTitle': 'Delete',
+      'places.deleteAria': 'Delete {name}',
+
+      'controls.zoomIn': 'Zoom in',
+      'controls.zoomOut': 'Zoom out',
+      'controls.recenter': 'Find and center on me',
+      'controls.compassOff': 'North up — tap to follow your heading',
+      'controls.compassOn': 'Heading up — tap for north up',
+      'controls.compassAria': 'Follow device heading',
+      'controls.fullscreenEnter': 'Full screen map',
+      'controls.fullscreenExit': 'Exit full screen',
+
+      'footer.rateTitle': 'How often to refresh your location',
+      'footer.every': 'every {n}s',
+
+      'toggles.themeTitle': 'Switch theme',
+      'toggles.themeAuto': 'auto',
+      'toggles.themeLight': 'light',
+      'toggles.themeDark': 'dark',
+      'toggles.unitsMetric': 'metric',
+      'toggles.unitsImperial': 'imperial',
+      'toggles.coordDecimal': 'decimal',
+      'toggles.coordDms': 'dms',
+
+      'banner.geoUnsupported': 'This browser does not support geolocation.',
+      'banner.needsSecureContext': 'Geolocation needs a secure context. Open this page over https:// or from http://localhost.',
+      'banner.tilesOffline': 'Map tiles could not load — you may be offline. Coordinates and tracking still work.',
+      'banner.geo.permissionDenied': 'Location permission denied. Enable it for this site in your browser settings, then try again.',
+      'banner.geo.unavailable': 'Your position is unavailable right now. Try moving somewhere with a clearer view of the sky.',
+      'banner.geo.timeout': 'Timed out waiting for a fix. Try again.',
+      'banner.geo.generic': 'Could not get your location.',
+
+      'toast.storageBlocked': 'Could not save — storage is full or blocked.',
+      'toast.recordingTrip': 'Recording trip',
+      'toast.tripSavedStillLive': 'Trip saved · still live',
+      'toast.tripStopped': 'Trip recording stopped',
+      'toast.tripCleared': 'Trip cleared',
+      'toast.noFix': 'No fix yet.',
+      'toast.copied': 'Copied {text}',
+      'toast.enterCoords': 'Enter coordinates as "lat, lng".',
+      'toast.findLocationFirst': 'Find your location first.',
+      'toast.saved': 'Saved "{name}"',
+      'toast.deleted': 'Deleted "{name}"',
+      'toast.noCompass': 'No compass on this device.',
+      'toast.compassDenied': 'Compass permission denied.',
+      'toast.compassUnavailable': 'Compass unavailable.',
+      'toast.noCompassSupport': 'This browser has no compass support.',
+      'toast.notEnoughPoints': 'Not enough track points yet.',
+      'toast.noPlacesToExport': 'No places to export.',
+      'toast.stopTripFirst': 'Stop the trip recording first.',
+      'toast.tapCompass': 'Tap the compass to follow your heading.',
+
+      'time.justNow': 'just now',
+      'time.secsAgo': '{n}s ago',
+      'time.minAgo': '{n} min ago',
+      'time.hAgo': '{n} h ago',
+
+      'sheet.findingYou': 'Finding you…',
+      'sheet.locationUnavailable': 'Location unavailable',
+      'sheet.expand': 'Expand details',
+      'sheet.collapse': 'Collapse details',
+
+      'lang.label': 'Language'
+    },
+
+    de: {
+      'auth.signIn': 'Anmelden',
+      'auth.createAccount': 'Konto erstellen',
+      'auth.needAccount': 'Noch kein Konto? Registrieren',
+      'auth.haveAccount': 'Schon ein Konto? Anmelden',
+      'auth.forgotPassword': 'Passwort vergessen?',
+      'auth.email': 'E-Mail',
+      'auth.password': 'Passwort',
+      'auth.enterEmailFirst': 'Gib zuerst oben deine E-Mail-Adresse ein.',
+      'auth.resetSent': 'E-Mail zum Zurücksetzen des Passworts wurde gesendet — prüfe dein Postfach.',
+      'auth.genericError': 'Etwas ist schiefgelaufen. Versuche es erneut.',
+      'auth.err.invalidEmail': 'Das sieht nicht nach einer gültigen E-Mail-Adresse aus.',
+      'auth.err.emailInUse': 'Für diese E-Mail-Adresse existiert bereits ein Konto — versuche dich stattdessen anzumelden.',
+      'auth.err.weakPassword': 'Das Passwort muss mindestens 6 Zeichen lang sein.',
+      'auth.err.userNotFound': 'Für diese E-Mail-Adresse wurde kein Konto gefunden.',
+      'auth.err.wrongPassword': 'Falsches Passwort.',
+      'auth.err.invalidCredential': 'E-Mail-Adresse oder Passwort ist falsch.',
+      'auth.err.missingPassword': 'Gib ein Passwort ein.',
+      'auth.err.tooManyRequests': 'Zu viele Versuche — warte kurz und versuche es erneut.',
+      'auth.err.networkFailed': 'Netzwerkfehler — überprüfe deine Verbindung.',
+
+      'account.account': 'Konto',
+      'account.changePassword': 'Passwort ändern',
+      'account.signOut': 'Abmelden',
+
+      'nav.now': 'Jetzt',
+      'nav.trip': 'Tour',
+      'nav.places': 'Orte',
+
+      'now.latitude': 'Breitengrad',
+      'now.longitude': 'Längengrad',
+      'now.accuracy': 'Genauigkeit',
+      'now.altitude': 'Höhe',
+      'now.speed': 'Geschwindigkeit',
+      'now.heading': 'Richtung',
+      'now.live': 'Live',
+      'now.paused': 'Pausiert',
+      'now.liveTitleOn': 'Standort wird automatisch aktualisiert — zum Pausieren tippen',
+      'now.liveTitleOff': 'Aktualisierung pausiert — zum Fortsetzen tippen',
+      'now.copy': 'Koordinaten kopieren',
+      'now.share': 'Teilen',
+      'now.savePlace': 'Diesen Ort speichern',
+      'now.jumpSummary': 'Zu Koordinaten springen',
+      'now.jumpAria': 'Breiten- und Längengrad',
+      'now.go': 'Los',
+      'now.namePlacePrompt': 'Diesen Ort benennen',
+      'now.unnamedPlace': 'Unbenannter Ort',
+      'now.fixFrom': 'Ortung von {time}',
+      'now.recordingTrip': ' · Tour wird aufgezeichnet',
+      'now.shareTitle': 'Mein Standort',
+      'now.shareText': 'Hier bin ich',
+      'now.coordFormatTitle': 'Koordinatenformat wechseln',
+      'now.youAreHere': 'Du bist hier',
+
+      'precision.waiting': 'Warte auf eine Ortung',
+      'precision.precise': 'Präzise',
+      'precision.good': 'Gut',
+      'precision.approx': 'Ungefähr',
+      'precision.coarse': 'Grob — Netzwerkortung',
+      'precision.unknown': 'Genauigkeit unbekannt',
+      'precision.advice': 'Diese Ortung ist ±{acc} genau, das heißt sie stammt vom Netzwerk statt vom GPS. ',
+      'precision.adviceIOS': 'Prüfe Einstellungen → Datenschutz → Ortungsdienste → dein Browser → Genauer Standort.',
+      'precision.adviceOther': 'Prüfe die Standorteinstellungen deines Geräts und erlaube genauen Standort für diese Seite.',
+
+      'weather.clearSky': 'Klarer Himmel',
+      'weather.mainlyClear': 'Überwiegend klar',
+      'weather.partlyCloudy': 'Teilweise bewölkt',
+      'weather.overcast': 'Bedeckt',
+      'weather.fog': 'Nebel',
+      'weather.lightDrizzle': 'Leichter Nieselregen',
+      'weather.drizzle': 'Nieselregen',
+      'weather.denseDrizzle': 'Starker Nieselregen',
+      'weather.freezingDrizzle': 'Gefrierender Nieselregen',
+      'weather.lightRain': 'Leichter Regen',
+      'weather.rain': 'Regen',
+      'weather.heavyRain': 'Starker Regen',
+      'weather.freezingRain': 'Gefrierender Regen',
+      'weather.lightSnow': 'Leichter Schneefall',
+      'weather.snow': 'Schnee',
+      'weather.heavySnow': 'Starker Schneefall',
+      'weather.snowGrains': 'Schneegriesel',
+      'weather.rainShowers': 'Regenschauer',
+      'weather.violentShowers': 'Heftige Schauer',
+      'weather.snowShowers': 'Schneeschauer',
+      'weather.thunderstorm': 'Gewitter',
+      'weather.thunderstormHail': 'Gewitter (Hagel)',
+
+      'trip.startTracking': 'Aufzeichnung starten',
+      'trip.stopTracking': 'Aufzeichnung stoppen',
+      'trip.distance': 'Distanz',
+      'trip.duration': 'Dauer',
+      'trip.avgSpeed': 'Ø-Geschwindigkeit',
+      'trip.pace': 'Tempo',
+      'trip.topSpeed': 'Höchstgeschwindigkeit',
+      'trip.points': 'Punkte',
+      'trip.climb': 'Anstieg',
+      'trip.note': 'Die Aufzeichnung hält die Standortabfrage aktiv und zeichnet deinen Weg auf der Karte auf. Nichts verlässt dein Gerät.',
+      'trip.exportGpx': 'GPX exportieren',
+      'trip.clearTrip': 'Tour löschen',
+
+      'places.emptyPrefix': 'Noch keine gespeicherten Orte. Ermittle deinen Standort und tippe dann auf ',
+      'places.emptyStrong': 'Diesen Ort speichern',
+      'places.emptySuffix': '.',
+      'places.exportJson': 'JSON exportieren',
+      'places.deleteTitle': 'Löschen',
+      'places.deleteAria': '{name} löschen',
+
+      'controls.zoomIn': 'Vergrößern',
+      'controls.zoomOut': 'Verkleinern',
+      'controls.recenter': 'Mich finden und zentrieren',
+      'controls.compassOff': 'Norden oben — tippen, um der Blickrichtung zu folgen',
+      'controls.compassOn': 'Blickrichtung oben — tippen für Norden oben',
+      'controls.compassAria': 'Geräterichtung folgen',
+      'controls.fullscreenEnter': 'Karte im Vollbild',
+      'controls.fullscreenExit': 'Vollbild verlassen',
+
+      'footer.rateTitle': 'Wie oft dein Standort aktualisiert wird',
+      'footer.every': 'alle {n}s',
+
+      'toggles.themeTitle': 'Design wechseln',
+      'toggles.themeAuto': 'auto',
+      'toggles.themeLight': 'hell',
+      'toggles.themeDark': 'dunkel',
+      'toggles.unitsMetric': 'metrisch',
+      'toggles.unitsImperial': 'imperial',
+      'toggles.coordDecimal': 'dezimal',
+      'toggles.coordDms': 'dms',
+
+      'banner.geoUnsupported': 'Dieser Browser unterstützt keine Standortbestimmung.',
+      'banner.needsSecureContext': 'Standortbestimmung benötigt einen sicheren Kontext. Öffne diese Seite über https:// oder von http://localhost.',
+      'banner.tilesOffline': 'Kartenkacheln konnten nicht geladen werden — du bist möglicherweise offline. Koordinaten und Aufzeichnung funktionieren weiterhin.',
+      'banner.geo.permissionDenied': 'Standortzugriff verweigert. Aktiviere ihn für diese Seite in deinen Browsereinstellungen und versuche es erneut.',
+      'banner.geo.unavailable': 'Dein Standort ist momentan nicht verfügbar. Versuche es an einem Ort mit freierer Sicht zum Himmel.',
+      'banner.geo.timeout': 'Zeitüberschreitung beim Warten auf eine Ortung. Versuche es erneut.',
+      'banner.geo.generic': 'Standort konnte nicht ermittelt werden.',
+
+      'toast.storageBlocked': 'Speichern nicht möglich — Speicher ist voll oder blockiert.',
+      'toast.recordingTrip': 'Tour wird aufgezeichnet',
+      'toast.tripSavedStillLive': 'Tour gespeichert · weiterhin live',
+      'toast.tripStopped': 'Aufzeichnung der Tour beendet',
+      'toast.tripCleared': 'Tour gelöscht',
+      'toast.noFix': 'Noch keine Ortung.',
+      'toast.copied': '{text} kopiert',
+      'toast.enterCoords': 'Gib Koordinaten als „Breite, Länge“ ein.',
+      'toast.findLocationFirst': 'Ermittle zuerst deinen Standort.',
+      'toast.saved': '„{name}“ gespeichert',
+      'toast.deleted': '„{name}“ gelöscht',
+      'toast.noCompass': 'Kein Kompass auf diesem Gerät.',
+      'toast.compassDenied': 'Kompasszugriff verweigert.',
+      'toast.compassUnavailable': 'Kompass nicht verfügbar.',
+      'toast.noCompassSupport': 'Dieser Browser unterstützt keinen Kompass.',
+      'toast.notEnoughPoints': 'Noch nicht genug Streckenpunkte.',
+      'toast.noPlacesToExport': 'Keine Orte zum Exportieren.',
+      'toast.stopTripFirst': 'Beende zuerst die Tour-Aufzeichnung.',
+      'toast.tapCompass': 'Tippe auf den Kompass, um deiner Richtung zu folgen.',
+
+      'time.justNow': 'gerade eben',
+      'time.secsAgo': 'vor {n}s',
+      'time.minAgo': 'vor {n} Min.',
+      'time.hAgo': 'vor {n} Std.',
+
+      'sheet.findingYou': 'Suche dich…',
+      'sheet.locationUnavailable': 'Standort nicht verfügbar',
+      'sheet.expand': 'Details einblenden',
+      'sheet.collapse': 'Details ausblenden',
+
+      'lang.label': 'Sprache'
+    },
+
+    pl: {
+      'auth.signIn': 'Zaloguj się',
+      'auth.createAccount': 'Utwórz konto',
+      'auth.needAccount': 'Nie masz konta? Zarejestruj się',
+      'auth.haveAccount': 'Masz już konto? Zaloguj się',
+      'auth.forgotPassword': 'Nie pamiętasz hasła?',
+      'auth.email': 'E-mail',
+      'auth.password': 'Hasło',
+      'auth.enterEmailFirst': 'Najpierw podaj swój adres e-mail powyżej.',
+      'auth.resetSent': 'Wysłano e-mail do zresetowania hasła — sprawdź swoją skrzynkę odbiorczą.',
+      'auth.genericError': 'Coś poszło nie tak. Spróbuj ponownie.',
+      'auth.err.invalidEmail': 'To nie wygląda na prawidłowy adres e-mail.',
+      'auth.err.emailInUse': 'Konto dla tego adresu e-mail już istnieje — spróbuj się zalogować.',
+      'auth.err.weakPassword': 'Hasło musi mieć co najmniej 6 znaków.',
+      'auth.err.userNotFound': 'Nie znaleziono konta dla tego adresu e-mail.',
+      'auth.err.wrongPassword': 'Nieprawidłowe hasło.',
+      'auth.err.invalidCredential': 'Nieprawidłowy e-mail lub hasło.',
+      'auth.err.missingPassword': 'Podaj hasło.',
+      'auth.err.tooManyRequests': 'Zbyt wiele prób — poczekaj chwilę i spróbuj ponownie.',
+      'auth.err.networkFailed': 'Błąd sieci — sprawdź swoje połączenie.',
+
+      'account.account': 'Konto',
+      'account.changePassword': 'Zmień hasło',
+      'account.signOut': 'Wyloguj się',
+
+      'nav.now': 'Teraz',
+      'nav.trip': 'Trasa',
+      'nav.places': 'Miejsca',
+
+      'now.latitude': 'Szerokość geo.',
+      'now.longitude': 'Długość geo.',
+      'now.accuracy': 'Dokładność',
+      'now.altitude': 'Wysokość',
+      'now.speed': 'Prędkość',
+      'now.heading': 'Kierunek',
+      'now.live': 'Na żywo',
+      'now.paused': 'Wstrzymano',
+      'now.liveTitleOn': 'Lokalizacja aktualizuje się automatycznie — dotknij, aby wstrzymać',
+      'now.liveTitleOff': 'Aktualizacje wstrzymane — dotknij, aby wznowić',
+      'now.copy': 'Kopiuj współrzędne',
+      'now.share': 'Udostępnij',
+      'now.savePlace': 'Zapisz to miejsce',
+      'now.jumpSummary': 'Przejdź do współrzędnych',
+      'now.jumpAria': 'Szerokość i długość geograficzna',
+      'now.go': 'Idź',
+      'now.namePlacePrompt': 'Nazwij to miejsce',
+      'now.unnamedPlace': 'Miejsce bez nazwy',
+      'now.fixFrom': 'Namiar sprzed {time}',
+      'now.recordingTrip': ' · nagrywanie trasy',
+      'now.shareTitle': 'Moja lokalizacja',
+      'now.shareText': 'Tu jestem',
+      'now.coordFormatTitle': 'Zmień format współrzędnych',
+      'now.youAreHere': 'Tu jesteś',
+
+      'precision.waiting': 'Oczekiwanie na namiar',
+      'precision.precise': 'Precyzyjna',
+      'precision.good': 'Dobra',
+      'precision.approx': 'Przybliżona',
+      'precision.coarse': 'Niska — namiar sieciowy',
+      'precision.unknown': 'Nieznana dokładność',
+      'precision.advice': 'Ten namiar ma dokładność ±{acc}, co oznacza, że pochodzi z sieci, a nie z GPS. ',
+      'precision.adviceIOS': 'Sprawdź Ustawienia → Prywatność → Usługi lokalizacji → twoja przeglądarka → Dokładna lokalizacja.',
+      'precision.adviceOther': 'Sprawdź ustawienia lokalizacji urządzenia i zezwól tej stronie na dokładną lokalizację.',
+
+      'weather.clearSky': 'Bezchmurnie',
+      'weather.mainlyClear': 'Przeważnie bezchmurnie',
+      'weather.partlyCloudy': 'Częściowe zachmurzenie',
+      'weather.overcast': 'Pochmurno',
+      'weather.fog': 'Mgła',
+      'weather.lightDrizzle': 'Lekka mżawka',
+      'weather.drizzle': 'Mżawka',
+      'weather.denseDrizzle': 'Gęsta mżawka',
+      'weather.freezingDrizzle': 'Marznąca mżawka',
+      'weather.lightRain': 'Lekki deszcz',
+      'weather.rain': 'Deszcz',
+      'weather.heavyRain': 'Silny deszcz',
+      'weather.freezingRain': 'Marznący deszcz',
+      'weather.lightSnow': 'Lekki śnieg',
+      'weather.snow': 'Śnieg',
+      'weather.heavySnow': 'Silny śnieg',
+      'weather.snowGrains': 'Śnieg ziarnisty',
+      'weather.rainShowers': 'Przelotny deszcz',
+      'weather.violentShowers': 'Gwałtowne przelotne opady',
+      'weather.snowShowers': 'Przelotny śnieg',
+      'weather.thunderstorm': 'Burza',
+      'weather.thunderstormHail': 'Burza (grad)',
+
+      'trip.startTracking': 'Rozpocznij śledzenie',
+      'trip.stopTracking': 'Zatrzymaj śledzenie',
+      'trip.distance': 'Dystans',
+      'trip.duration': 'Czas trwania',
+      'trip.avgSpeed': 'Śr. prędkość',
+      'trip.pace': 'Tempo',
+      'trip.topSpeed': 'Maks. prędkość',
+      'trip.points': 'Punkty',
+      'trip.climb': 'Podejście',
+      'trip.note': 'Śledzenie utrzymuje aktywne monitorowanie lokalizacji i rysuje twoją trasę na mapie. Nic nie opuszcza twojego urządzenia.',
+      'trip.exportGpx': 'Eksportuj GPX',
+      'trip.clearTrip': 'Wyczyść trasę',
+
+      'places.emptyPrefix': 'Brak zapisanych miejsc. Znajdź swoją lokalizację, a następnie dotknij ',
+      'places.emptyStrong': 'Zapisz to miejsce',
+      'places.emptySuffix': '.',
+      'places.exportJson': 'Eksportuj JSON',
+      'places.deleteTitle': 'Usuń',
+      'places.deleteAria': 'Usuń {name}',
+
+      'controls.zoomIn': 'Powiększ',
+      'controls.zoomOut': 'Pomniejsz',
+      'controls.recenter': 'Znajdź mnie i wyśrodkuj',
+      'controls.compassOff': 'Północ u góry — dotknij, aby podążać za kierunkiem',
+      'controls.compassOn': 'Kierunek u góry — dotknij, aby ustawić północ u góry',
+      'controls.compassAria': 'Podążaj za kierunkiem urządzenia',
+      'controls.fullscreenEnter': 'Mapa na pełnym ekranie',
+      'controls.fullscreenExit': 'Zamknij pełny ekran',
+
+      'footer.rateTitle': 'Jak często odświeżać lokalizację',
+      'footer.every': 'co {n}s',
+
+      'toggles.themeTitle': 'Zmień motyw',
+      'toggles.themeAuto': 'auto',
+      'toggles.themeLight': 'jasny',
+      'toggles.themeDark': 'ciemny',
+      'toggles.unitsMetric': 'metryczne',
+      'toggles.unitsImperial': 'imperialne',
+      'toggles.coordDecimal': 'dziesiętne',
+      'toggles.coordDms': 'dms',
+
+      'banner.geoUnsupported': 'Ta przeglądarka nie obsługuje lokalizacji.',
+      'banner.needsSecureContext': 'Lokalizacja wymaga bezpiecznego połączenia. Otwórz tę stronę przez https:// lub z http://localhost.',
+      'banner.tilesOffline': 'Nie udało się wczytać kafelków mapy — być może jesteś offline. Współrzędne i śledzenie nadal działają.',
+      'banner.geo.permissionDenied': 'Odmówiono dostępu do lokalizacji. Włącz go dla tej strony w ustawieniach przeglądarki i spróbuj ponownie.',
+      'banner.geo.unavailable': 'Twoja pozycja jest obecnie niedostępna. Spróbuj przejść w miejsce z lepszym widokiem nieba.',
+      'banner.geo.timeout': 'Przekroczono czas oczekiwania na namiar. Spróbuj ponownie.',
+      'banner.geo.generic': 'Nie udało się ustalić lokalizacji.',
+
+      'toast.storageBlocked': 'Nie można zapisać — pamięć jest pełna lub zablokowana.',
+      'toast.recordingTrip': 'Nagrywanie trasy',
+      'toast.tripSavedStillLive': 'Trasa zapisana · nadal na żywo',
+      'toast.tripStopped': 'Zatrzymano nagrywanie trasy',
+      'toast.tripCleared': 'Trasa wyczyszczona',
+      'toast.noFix': 'Brak jeszcze namiaru.',
+      'toast.copied': 'Skopiowano {text}',
+      'toast.enterCoords': 'Podaj współrzędne jako „szer., dł.”.',
+      'toast.findLocationFirst': 'Najpierw znajdź swoją lokalizację.',
+      'toast.saved': 'Zapisano „{name}”',
+      'toast.deleted': 'Usunięto „{name}”',
+      'toast.noCompass': 'Brak kompasu w tym urządzeniu.',
+      'toast.compassDenied': 'Odmówiono dostępu do kompasu.',
+      'toast.compassUnavailable': 'Kompas niedostępny.',
+      'toast.noCompassSupport': 'Ta przeglądarka nie obsługuje kompasu.',
+      'toast.notEnoughPoints': 'Za mało punktów trasy.',
+      'toast.noPlacesToExport': 'Brak miejsc do eksportu.',
+      'toast.stopTripFirst': 'Najpierw zatrzymaj nagrywanie trasy.',
+      'toast.tapCompass': 'Dotknij kompasu, aby podążać za swoim kierunkiem.',
+
+      'time.justNow': 'przed chwilą',
+      'time.secsAgo': '{n}s temu',
+      'time.minAgo': '{n} min temu',
+      'time.hAgo': '{n} godz. temu',
+
+      'sheet.findingYou': 'Szukam Cię…',
+      'sheet.locationUnavailable': 'Lokalizacja niedostępna',
+      'sheet.expand': 'Rozwiń szczegóły',
+      'sheet.collapse': 'Zwiń szczegóły',
+
+      'lang.label': 'Język'
+    }
+  };
+
+  var LANGS = ['en', 'de', 'pl'];
+  var LANG_NAMES = { en: 'EN', de: 'DE', pl: 'PL' };
+
+  function detectLang() {
+    try {
+      var saved = localStorage.getItem(STORE_LANG);
+      if (saved && STRINGS[saved]) return saved;
+    } catch (e) { /* storage blocked — fall through to detection */ }
+    var nav = ((navigator.language || 'en').split('-')[0] || 'en').toLowerCase();
+    return STRINGS[nav] ? nav : 'en';
+  }
+
+  var lang = detectLang();
+  var listeners = [];
+
+  function t(key, vars) {
+    var dict = STRINGS[lang] || STRINGS.en;
+    var str = dict[key] != null ? dict[key] : (STRINGS.en[key] != null ? STRINGS.en[key] : key);
+    if (vars) {
+      Object.keys(vars).forEach(function (k) {
+        str = str.replace('{' + k + '}', vars[k]);
+      });
+    }
+    return str;
+  }
+
+  function applyStatic() {
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+      var key = el.getAttribute('data-i18n-title');
+      el.setAttribute('title', t(key));
+      if (!el.hasAttribute('data-i18n-aria')) el.setAttribute('aria-label', t(key));
+    });
+    document.querySelectorAll('[data-i18n-aria]').forEach(function (el) {
+      el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+      el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder')));
+    });
+    document.querySelectorAll('.lang-toggle').forEach(function (el) {
+      el.textContent = LANG_NAMES[lang];
+      el.title = t('lang.label');
+      el.setAttribute('aria-label', t('lang.label'));
+    });
+  }
+
+  function setLang(next) {
+    if (!STRINGS[next] || next === lang) return;
+    lang = next;
+    try { localStorage.setItem(STORE_LANG, lang); } catch (e) { /* non-fatal */ }
+    document.documentElement.lang = lang;
+    applyStatic();
+    listeners.forEach(function (fn) { fn(lang); });
+  }
+
+  function cycleLang() {
+    setLang(LANGS[(LANGS.indexOf(lang) + 1) % LANGS.length]);
+  }
+
+  function getLang() { return lang; }
+
+  function onChange(fn) { listeners.push(fn); }
+
+  document.documentElement.lang = lang;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyStatic);
+  } else {
+    applyStatic();
+  }
+
+  window.WhereaboutsI18n = {
+    t: t,
+    setLang: setLang,
+    cycleLang: cycleLang,
+    getLang: getLang,
+    onChange: onChange,
+    applyStatic: applyStatic,
+    LANGS: LANGS,
+    LANG_NAMES: LANG_NAMES
+  };
+})();

@@ -36,6 +36,14 @@ fix and recenters on demand. Toggle between decimal degrees and
 degrees/minutes/seconds, copy the coordinates, share them as an OpenStreetMap
 link, or jump the map to coordinates you paste in.
 
+Between real fixes, the dot doesn't just sit still and jump — while moving at
+walking pace or faster, it's nudged forward using the last fix's own reported
+speed and heading (dead reckoning), so it glides rather than stutters. This is
+purely a rendering effect: the numeric readout, the saved-place coordinates,
+and the trip track only ever see real fixes, never an estimate. A fresh real
+fix always corrects it immediately, and pausing snaps straight back to the
+last real position rather than leaving the dot wherever the estimate drifted.
+
 A precision line under the coordinates grades the current fix — Precise (±20 m
 or better), Good, Approximate, or Coarse — so you can tell a satellite fix from
 a network one. If a fix is coarser than 500 m the app says so once and points at

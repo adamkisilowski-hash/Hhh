@@ -36,7 +36,9 @@
     compassEvent: null,
     compassSeen: false,
     locateBusy: false,
-    sheetExpanded: false
+    sheetExpanded: false,
+    deadReckonTimer: null,
+    streetName: null
   };
 
   var map;
@@ -63,6 +65,22 @@
     var y = Math.sin(dLng) * Math.cos(lat2);
     var x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
     return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+
+  // The forward geodesic problem: where do you end up, given a start point,
+  // a bearing, and a distance. Used to dead-reckon the marker forward from
+  // the last real fix between updates.
+  function destinationPoint(lat, lng, bearingDeg, meters) {
+    var delta = meters / EARTH_RADIUS;
+    var theta = toRad(bearingDeg);
+    var phi1 = toRad(lat);
+    var lambda1 = toRad(lng);
+    var phi2 = Math.asin(Math.sin(phi1) * Math.cos(delta) + Math.cos(phi1) * Math.sin(delta) * Math.cos(theta));
+    var lambda2 = lambda1 + Math.atan2(
+      Math.sin(theta) * Math.sin(delta) * Math.cos(phi1),
+      Math.cos(delta) - Math.sin(phi1) * Math.sin(phi2)
+    );
+    return { lat: phi2 * 180 / Math.PI, lng: ((lambda2 * 180 / Math.PI) + 540) % 360 - 180 };
   }
 
   function compassPoint(deg) {
@@ -301,6 +319,51 @@
     state.watchId = null;
     clearInterval(state.pollTimer);
     state.pollTimer = null;
+    stopDeadReckoning();
+  }
+
+  /* Dead reckoning: watchPosition/poll only deliver a handful of fixes per
+   * second at best, so on a moving device the dot would otherwise sit still
+   * and then jump. Between real fixes, nudge the marker forward from the
+   * last one using its own reported speed and heading — real GPS chips
+   * already report both, so this needs no extra sensor. Purely a rendering
+   * effect: state.position, the numeric readout, and the track never see
+   * anything but real fixes, so nothing estimated can end up saved, shared,
+   * or exported. */
+  function startDeadReckoning() {
+    if (state.deadReckonTimer) return;
+    state.deadReckonTimer = setInterval(tickDeadReckoning, 200);
+  }
+
+  function stopDeadReckoning() {
+    if (!state.deadReckonTimer) return;
+    clearInterval(state.deadReckonTimer);
+    state.deadReckonTimer = null;
+    // Undo any drift the last few ticks introduced — once extrapolation
+    // isn't actively running, the dot should only ever sit where the last
+    // real fix put it.
+    if (state.position) {
+      var c = state.position.coords;
+      map.setMarker('me', c.latitude, c.longitude, 'mm-marker-me', 'You are here');
+      map.setAccuracy(c.latitude, c.longitude, c.accuracy);
+    }
+  }
+
+  function tickDeadReckoning() {
+    var pos = state.position;
+    if (!pos) return;
+    var c = pos.coords;
+    // Below walking pace this would just be amplifying GPS speed noise into
+    // a wandering dot; heading is meaningless without real movement anyway.
+    if (c.speed == null || c.speed < 0.3 || c.heading == null || isNaN(c.heading)) return;
+    var elapsed = (Date.now() - pos.timestamp) / 1000;
+    // A fix that's gotten this stale isn't worth extrapolating further —
+    // freeze rather than compound a guess on top of a guess.
+    if (elapsed <= 0 || elapsed > 20) return;
+    var dest = destinationPoint(c.latitude, c.longitude, c.heading, c.speed * elapsed);
+    map.setMarker('me', dest.lat, dest.lng, 'mm-marker-me', 'You are here');
+    map.setAccuracy(dest.lat, dest.lng, c.accuracy);
+    if (state.followMe) map.setView(dest.lat, dest.lng, null);
   }
 
   /* watchPosition only fires when the device decides you've moved far enough,
@@ -351,8 +414,11 @@
 
   // Hold the watch open while either job still wants it, and not otherwise.
   function syncWatch() {
-    if (state.prefs.live || state.tracking) startWatch();
-    else stopWatch();
+    if (state.prefs.live || state.tracking) {
+      if (startWatch()) startDeadReckoning();
+    } else {
+      stopWatch();
+    }
     syncPoll();
     renderLive();
   }

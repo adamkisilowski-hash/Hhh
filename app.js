@@ -136,7 +136,8 @@
   function banner(message, kind) {
     var el = $('banner');
     if (!message) { el.hidden = true; return; }
-    el.textContent = message;
+    // Only the text node is replaced — the dismiss button lives alongside it.
+    $('banner-text').textContent = message;
     el.className = 'banner' + (kind ? ' banner-' + kind : '');
     el.dataset.kind = kind || '';
     el.hidden = false;
@@ -407,7 +408,7 @@
     var ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
     banner('This fix is ±' + formatDistance(accuracy) + ', which means it came from the network rather than GPS. ' +
       (ios ? 'Check Settings → Privacy → Location Services → your browser → Precise Location.'
-           : 'Check your device location settings and allow precise location for this site.'), 'warn');
+           : 'Check your device location settings and allow precise location for this site.'), 'precision');
   }
 
   function handlePosition(pos, recenter) {
@@ -499,6 +500,7 @@
     $('precision-text').textContent = c.accuracy != null
       ? quality.label + ' · ±' + formatDistance(c.accuracy)
       : quality.label;
+    if (c.accuracy != null && c.accuracy <= 500) clearBanner('precision');
     maybeAdviseOnPrecision(c.accuracy);
 
     $('hud').hidden = !state.immersive;
@@ -784,6 +786,10 @@
       if (!parsed) { toast('Enter coordinates as "lat, lng".'); return; }
       state.followMe = false;
       map.setView(parsed.lat, parsed.lng, 15);
+    });
+
+    $('banner-close').addEventListener('click', function () {
+      $('banner').hidden = true;
     });
 
     $('fullscreen').addEventListener('click', toggleFullscreen);

@@ -381,6 +381,9 @@ body.is-immersive .panel { display: none; }
 @keyframes blink { 50% { opacity: 0.2; } }
 
 .banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   position: absolute;
   top: 12px;
   left: 12px;
@@ -394,10 +397,27 @@ body.is-immersive .panel { display: none; }
   box-shadow: var(--shadow);
 }
 
+.banner[hidden] { display: none; }
+
 .banner-error {
   background: var(--error-bg);
   color: var(--error-text);
 }
+
+.banner-close {
+  flex: none;
+  margin: -2px -4px 0 0;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 17px;
+  line-height: 1.2;
+  opacity: 0.65;
+  cursor: pointer;
+}
+
+.banner-close:hover { opacity: 1; }
 
 /* -------------------------------------------------------------- tabs */
 

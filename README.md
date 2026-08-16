@@ -96,7 +96,11 @@ trip sticks around the same way until you export it or tap **Clear trip**.
 
 **Places** — save the spot you're standing on with a name. Saved places are
 listed nearest-first with distance and compass bearing from your current
-position, drawn as pins on the map, and exportable as JSON.
+position — each one with a small waypoint arrow pointing straight at it,
+alongside the same bearing written out as a compass letter — drawn as pins
+on the map, and exportable as JSON. With no current fix to point from, the
+arrow is left off rather than drawn pointing nowhere, and the row falls back
+to the date the place was saved.
 
 **Heading up** — the compass control turns the map so it points the way your
 device is pointing, with the needle staying true to north and every marker

@@ -1065,11 +1065,10 @@
   }
 
   function wireUI() {
-    // No on-screen zoom buttons — scroll/pinch (already supported by the
-    // map itself) and the +/-/= keyboard shortcuts below cover it, matching
-    // the minimal control set a native map app shows by default.
     // Recenter now doubles as "find me": one control, always a fresh fix,
     // rather than a separate always-visible pill for the same job.
+    $('zoom-in').addEventListener('click', function () { map.zoomBy(1); });
+    $('zoom-out').addEventListener('click', function () { map.zoomBy(-1); });
     $('recenter').addEventListener('click', locateOnce);
 
     $('sheet-handle').addEventListener('click', function () {

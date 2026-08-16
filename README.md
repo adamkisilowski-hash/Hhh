@@ -27,6 +27,21 @@ by hand stops it recentring on you, without stopping the updates. Toggle between
 decimal degrees and degrees/minutes/seconds, copy the coordinates, share them as
 an OpenStreetMap link, or jump the map to coordinates you paste in.
 
+A precision line under the coordinates grades the current fix — Precise (±20 m
+or better), Good, Approximate, or Coarse — so you can tell a satellite fix from
+a network one. If a fix is coarser than 500 m the app says so once and points at
+the OS setting that causes it, since that's a device permission rather than
+something the page can fix. A fix that is both much vaguer than the last one and
+somewhere else is held briefly rather than shown, so a GPS dropping to Wi-Fi
+positioning doesn't fling the marker across town; a vaguer reading of the *same*
+spot is still accepted, so the precision shown never goes stale.
+
+**Full screen** — the ⛶ control (or `f`) hides the panel and fills the screen
+with the map, leaving a compact readout of coordinates, accuracy and speed in
+the corner. It requests real browser fullscreen where that exists and falls back
+to the immersive layout where it doesn't, so it still does something useful on
+iOS Safari. `Esc` or the same button returns.
+
 **Trip** — start recording and the app draws your path on the map and totals
 distance, duration, average and top speed, point count and cumulative climb.
 Export the track as GPX for any mapping tool. Live updates and trip recording

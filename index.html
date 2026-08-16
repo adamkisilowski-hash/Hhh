@@ -19,6 +19,17 @@
       <button id="zoom-in" class="mc-btn" title="Zoom in" aria-label="Zoom in">+</button>
       <button id="zoom-out" class="mc-btn" title="Zoom out" aria-label="Zoom out">−</button>
       <button id="recenter" class="mc-btn" title="Recenter on me" aria-label="Recenter on me">◎</button>
+      <button id="fullscreen" class="mc-btn" title="Full screen map" aria-label="Full screen map" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path class="fs-expand" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
+          <path class="fs-collapse" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>
+        </svg>
+      </button>
+    </div>
+
+    <div id="hud" class="hud" hidden>
+      <span id="hud-coords" class="hud-coords">—</span>
+      <span id="hud-meta" class="hud-meta"></span>
     </div>
 
     <div id="banner" class="banner" role="alert" hidden></div>
@@ -51,6 +62,10 @@
         <div class="coord-row">
           <span class="coord-label">Longitude</span>
           <span id="lng" class="coord-value">—</span>
+        </div>
+        <div id="precision" class="precision">
+          <span class="precision-dot"></span>
+          <span id="precision-text">Waiting for a fix</span>
         </div>
       </div>
 

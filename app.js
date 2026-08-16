@@ -21,12 +21,17 @@
     maxSpeed: 0,
     climb: 0,
     places: [],
-    prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'fast' },
+    prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'turbo', headingUp: false },
     followMe: true,
     immersive: false,
     advisedOnPrecision: false,
     pollTimer: null,
-    pollStartedAt: 0
+    pollStartedAt: 0,
+    headingUp: false,
+    heading: null,
+    appliedHeading: null,
+    compassEvent: null,
+    compassSeen: false
   };
 
   var map;
@@ -287,12 +292,12 @@
    * which on a stationary phone can mean nothing for a minute. Polling for a
    * fresh fix alongside it keeps the readout genuinely current — at a rate the
    * user picks, because this is the expensive part of the battery bill. */
-  var RATES = { fast: 2000, normal: 5000, saver: 15000 };
+  var RATES = { turbo: 1000, fast: 2000, normal: 5000, saver: 15000 };
 
   // Long enough that a slow fix isn't abandoned, short enough that a stuck one
   // doesn't hold up the next attempt for long.
   function pollTimeout() {
-    return Math.max(5000, (RATES[state.prefs.rate] || RATES.fast) * 2);
+    return Math.max(5000, (RATES[state.prefs.rate] || RATES.turbo) * 2);
   }
 
   function pollNow() {
@@ -318,7 +323,7 @@
   }
 
   function rateLabel() {
-    return 'every ' + (RATES[state.prefs.rate] || RATES.fast) / 1000 + 's';
+    return 'every ' + (RATES[state.prefs.rate] || RATES.turbo) / 1000 + 's';
   }
 
   function syncPoll() {
@@ -326,7 +331,7 @@
     state.pollTimer = null;
     if (state.watchId == null) return;
     if (!state.prefs.live && !state.tracking) return;
-    state.pollTimer = setInterval(pollNow, RATES[state.prefs.rate] || RATES.fast);
+    state.pollTimer = setInterval(pollNow, RATES[state.prefs.rate] || RATES.turbo);
   }
 
   // Hold the watch open while either job still wants it, and not otherwise.
@@ -574,6 +579,118 @@
     });
   }
 
+  /* ------------------------------------------------------------- compass */
+
+  /* Heading-up mode. Three complications, all handled here: iOS exposes a
+   * ready-made compass heading and demands a permission gesture, other
+   * browsers give an absolute alpha measured the other way round, and a
+   * device held in landscape reports relative to the device rather than the
+   * screen. */
+
+  function headingFromEvent(e) {
+    if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) {
+      return e.webkitCompassHeading;                 // iOS: degrees clockwise from north
+    }
+    if (typeof e.alpha === 'number' && !isNaN(e.alpha) && (e.absolute || e.type === 'deviceorientationabsolute')) {
+      return (360 - e.alpha) % 360;                  // alpha runs anticlockwise
+    }
+    return null;
+  }
+
+  function screenAngle() {
+    if (window.screen && window.screen.orientation && typeof window.screen.orientation.angle === 'number') {
+      return window.screen.orientation.angle;
+    }
+    return typeof window.orientation === 'number' ? window.orientation : 0;
+  }
+
+  // Shortest signed way round from a to b, so smoothing across 359°→1° doesn't
+  // spin the map the long way.
+  function angleDelta(a, b) {
+    return ((b - a + 540) % 360) - 180;
+  }
+
+  function onOrientation(e) {
+    var raw = headingFromEvent(e);
+    if (raw == null) return;
+    state.compassSeen = true;
+
+    var heading = (raw + screenAngle() + 360) % 360;
+    state.heading = state.heading == null
+      ? heading
+      // Low-pass filter: raw compass output is far too jittery to drive a map.
+      : (state.heading + angleDelta(state.heading, heading) * 0.25 + 360) % 360;
+
+    // Only repaint on a change big enough to see.
+    if (state.appliedHeading == null || Math.abs(angleDelta(state.appliedHeading, state.heading)) > 1.5) {
+      state.appliedHeading = state.heading;
+      map.setBearing(state.heading);
+      renderCompass();
+    }
+  }
+
+  function attachCompass() {
+    var evt = ('ondeviceorientationabsolute' in window) ? 'deviceorientationabsolute' : 'deviceorientation';
+    window.addEventListener(evt, onOrientation);
+    state.compassEvent = evt;
+
+    // Nothing reports a heading on a desktop without a magnetometer; say so
+    // rather than leaving a toggle that silently does nothing.
+    setTimeout(function () {
+      if (state.headingUp && !state.compassSeen) {
+        toast('No compass on this device.');
+        setHeadingUp(false);
+      }
+    }, 2500);
+  }
+
+  function detachCompass() {
+    if (state.compassEvent) window.removeEventListener(state.compassEvent, onOrientation);
+    state.compassEvent = null;
+    state.heading = null;
+    state.appliedHeading = null;
+    state.compassSeen = false;
+  }
+
+  function setHeadingUp(on) {
+    state.headingUp = on;
+    state.prefs.headingUp = on;
+    savePrefs();
+    map.setRotationEnabled(on);
+
+    if (on) {
+      // iOS 13+ only hands over orientation after an explicit grant, and only
+      // from a user gesture — which is why this lives on the button.
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().then(function (result) {
+          if (result === 'granted') attachCompass();
+          else { toast('Compass permission denied.'); setHeadingUp(false); }
+        }).catch(function () { toast('Compass unavailable.'); setHeadingUp(false); });
+      } else if (typeof DeviceOrientationEvent === 'undefined') {
+        toast('This browser has no compass support.');
+        state.headingUp = false;
+        state.prefs.headingUp = false;
+        map.setRotationEnabled(false);
+      } else {
+        attachCompass();
+      }
+    } else {
+      detachCompass();
+      map.setBearing(0);
+    }
+    renderCompass();
+  }
+
+  function renderCompass() {
+    var btn = $('compass');
+    btn.classList.toggle('is-active', !!state.headingUp);
+    btn.setAttribute('aria-pressed', state.headingUp ? 'true' : 'false');
+    btn.title = state.headingUp ? 'Heading up — tap for north up' : 'North up — tap to follow your heading';
+    // The needle keeps pointing at true north as the map turns beneath it.
+    $('compass-needle').style.transform = 'rotate(' + (-(map ? map.getBearing() : 0)) + 'deg)';
+  }
+
   /* ---------------------------------------------------------- fullscreen */
 
   /* Two separate things, deliberately driven by one button: the Fullscreen
@@ -716,7 +833,7 @@
     });
 
     $('rate-toggle').addEventListener('click', function () {
-      var order = ['fast', 'normal', 'saver'];
+      var order = ['turbo', 'fast', 'normal', 'saver'];
       state.prefs.rate = order[(order.indexOf(state.prefs.rate) + 1) % order.length];
       this.textContent = rateLabel();
       savePrefs();
@@ -791,6 +908,18 @@
     $('banner-close').addEventListener('click', function () {
       $('banner').hidden = true;
     });
+
+    $('compass').addEventListener('click', function () {
+      setHeadingUp(!state.headingUp);
+    });
+
+    // Rotating the phone changes what "up" means for the compass reading.
+    if (window.screen && window.screen.orientation && window.screen.orientation.addEventListener) {
+      window.screen.orientation.addEventListener('change', function () {
+        state.heading = null;
+        state.appliedHeading = null;
+      });
+    }
 
     $('fullscreen').addEventListener('click', toggleFullscreen);
 
@@ -887,6 +1016,10 @@
 
     wireUI();
     renderLive();
+    renderCompass();
+    // Heading-up needs a gesture on iOS, so a saved preference re-arms the
+    // control rather than silently starting the compass.
+    if (state.prefs.headingUp) toast('Tap the compass to follow your heading.');
     syncPlaceMarkers();
     renderPlaces();
     renderTrip();

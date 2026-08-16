@@ -80,9 +80,20 @@
     this.markerLayer = document.createElement('div');
     this.markerLayer.className = 'mm-markers';
 
-    this.el.appendChild(this.tileLayer);
-    this.el.appendChild(this.overlay);
-    this.el.appendChild(this.markerLayer);
+    /* Everything that belongs to the world goes inside a rotator, so a
+     * heading-up map is one transform rather than a re-projection. It is
+     * inset by `_pad` past every edge, because a rotated square has to be
+     * bigger than its viewport or the corners come up empty. */
+    this.rotator = document.createElement('div');
+    this.rotator.className = 'mm-rotator';
+    this.rotator.appendChild(this.tileLayer);
+    this.rotator.appendChild(this.overlay);
+    this.rotator.appendChild(this.markerLayer);
+    this.el.appendChild(this.rotator);
+
+    this.bearing = 0;
+    this.rotationEnabled = false;
+    this._pad = 0;
 
     this._bindPointer();
     this._bindWheel();
@@ -115,10 +126,56 @@
     return { x: p.x - o.x, y: p.y - o.y };
   };
 
-  MiniMap.prototype.pointToLatLng = function (x, y) {
-    var o = this._origin();
-    return unproject(o.x + x, o.y + y, this.zoom);
+  /* The rotator is transformed by rotate(-bearing), so a CSS transform maps a
+   * plane point p to M(-bearing)·p. Going the other way — screen to plane, for
+   * clicks, drags and zoom anchors — means applying M(+bearing). */
+  MiniMap.prototype._screenToPlane = function (x, y) {
+    if (!this.bearing) return { x: x, y: y };
+    var s = this.size();
+    var cx = s.w / 2, cy = s.h / 2;
+    var v = this._rotateVector(x - cx, y - cy);
+    return { x: cx + v.x, y: cy + v.y };
   };
+
+  MiniMap.prototype._rotateVector = function (dx, dy) {
+    if (!this.bearing) return { x: dx, y: dy };
+    var r = this.bearing * Math.PI / 180;
+    var cos = Math.cos(r), sin = Math.sin(r);
+    return { x: dx * cos - dy * sin, y: dx * sin + dy * cos };
+  };
+
+  MiniMap.prototype.pointToLatLng = function (x, y) {
+    var p = this._screenToPlane(x, y);
+    var o = this._origin();
+    return unproject(o.x + p.x, o.y + p.y, this.zoom);
+  };
+
+  /* Rotation ---------------------------------------------------------- */
+
+  // Half the difference between the viewport's diagonal and its shorter side:
+  // the most any corner can swing outside the box at any angle.
+  MiniMap.prototype._padFor = function (s) {
+    if (!this.rotationEnabled) return 0;
+    return Math.ceil((Math.hypot(s.w, s.h) - Math.min(s.w, s.h)) / 2) + TILE;
+  };
+
+  MiniMap.prototype.setRotationEnabled = function (on) {
+    if (this.rotationEnabled === on) return this;
+    this.rotationEnabled = on;
+    if (!on) this.bearing = 0;
+    this.render();
+    return this;
+  };
+
+  MiniMap.prototype.setBearing = function (deg) {
+    this.bearing = ((deg % 360) + 360) % 360;
+    this.rotator.style.transform = 'rotate(' + (-this.bearing) + 'deg)';
+    // Markers would otherwise ride the rotation and end up upside down.
+    this._placeMarkers();
+    return this;
+  };
+
+  MiniMap.prototype.getBearing = function () { return this.bearing; };
 
   MiniMap.prototype.on = function (event, fn) {
     if (this.listeners[event]) this.listeners[event].push(fn);
@@ -253,8 +310,10 @@
   };
 
   MiniMap.prototype.panByPixels = function (dx, dy) {
+    // Dragging should follow the finger, not the map's underlying axes.
+    var d = this._rotateVector(dx, dy);
     var c = project(this.center.lat, this.center.lng, this.zoom);
-    var next = unproject(c.x + dx, c.y + dy, this.zoom);
+    var next = unproject(c.x + d.x, c.y + d.y, this.zoom);
     this.center = { lat: clampLat(next.lat), lng: next.lng };
     this.render();
     this._emit('move', this.getView());
@@ -305,15 +364,19 @@
 
   MiniMap.prototype._placeMarkers = function () {
     var self = this;
+    var pad = this._pad;
+    var upright = self.bearing ? ' rotate(' + self.bearing + 'deg)' : '';
     Object.keys(this.markers).forEach(function (id) {
       var m = self.markers[id];
       var p = self.latLngToPoint(m.lat, m.lng);
-      m.el.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px)';
+      m.el.style.transform = 'translate(' + (p.x + pad) + 'px,' + (p.y + pad) + 'px)' + upright;
     });
   };
 
   MiniMap.prototype._drawOverlay = function () {
-    var s = this.size();
+    var size = this.size();
+    var pad = this._pad;
+    var s = { w: size.w + pad * 2, h: size.h + pad * 2 };
     this.overlay.setAttribute('width', s.w);
     this.overlay.setAttribute('height', s.h);
     this.overlay.setAttribute('viewBox', '0 0 ' + s.w + ' ' + s.h);
@@ -321,8 +384,8 @@
     if (this._accuracy) {
       var c = this.latLngToPoint(this._accuracy.lat, this._accuracy.lng);
       var r = this._accuracy.meters / metersPerPixel(this._accuracy.lat, this.zoom);
-      this.accuracyCircle.setAttribute('cx', c.x);
-      this.accuracyCircle.setAttribute('cy', c.y);
+      this.accuracyCircle.setAttribute('cx', c.x + pad);
+      this.accuracyCircle.setAttribute('cy', c.y + pad);
       // Below a few pixels the circle reads as noise around the marker.
       this.accuracyCircle.setAttribute('r', r > 4 ? Math.min(r, s.w + s.h) : 0);
     } else {
@@ -333,7 +396,7 @@
       var d = '';
       for (var i = 0; i < this.track.length; i++) {
         var p = this.latLngToPoint(this.track[i].lat, this.track[i].lng);
-        d += (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+        d += (i === 0 ? 'M' : 'L') + (p.x + pad).toFixed(1) + ' ' + (p.y + pad).toFixed(1);
       }
       this.trackPath.setAttribute('d', d);
       this.trackCasing.setAttribute('d', d);
@@ -367,13 +430,24 @@
     var s = this.size();
     if (!s.w || !s.h) return;
 
+    var pad = this._padFor(s);
+    this._pad = pad;
+    this.rotator.style.inset = (-pad) + 'px';
+    this.rotator.style.transform = 'rotate(' + (-this.bearing) + 'deg)';
+
+    // Tiles are laid out against the rotator's box, which starts `pad` above
+    // and left of the viewport.
     var o = this._origin();
+    o = { x: o.x - pad, y: o.y - pad };
+    var w = s.w + pad * 2;
+    var h = s.h + pad * 2;
+
     var z = this.zoom;
     var n = Math.pow(2, z);
     var minX = Math.floor(o.x / TILE);
-    var maxX = Math.floor((o.x + s.w) / TILE);
+    var maxX = Math.floor((o.x + w) / TILE);
     var minY = clamp(Math.floor(o.y / TILE), 0, n - 1);
-    var maxY = clamp(Math.floor((o.y + s.h) / TILE), 0, n - 1);
+    var maxY = clamp(Math.floor((o.y + h) / TILE), 0, n - 1);
 
     var wanted = Object.create(null);
 

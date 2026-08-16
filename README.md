@@ -196,6 +196,14 @@ explicit that these identify your project rather than protect it, and are
 safe to commit to a public repo. What actually protects your project is
 Firebase's own security rules, layered on separately.
 
+Once signed in, a small circular avatar appears in the header — showing the
+first letter of the account's email — next to the theme toggle. It opens a
+menu with the full email, **Change password** (sends a password reset
+email; there's no in-app change-password form, since that keeps this app
+from ever needing to touch the current password itself), and **Sign out**.
+Signing out reloads the page rather than trying to individually stop every
+running watch, poll, and timer — simpler, and just as immediate.
+
 **Scope, deliberately kept narrow:** signing in only gates access to the app
 itself. Saved places, trip history, and every preference still live only in
 `localStorage` on the device you're using, exactly as before — nothing about

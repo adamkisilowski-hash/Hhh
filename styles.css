@@ -224,24 +224,84 @@ body {
 
 .link-btn:hover { text-decoration: underline; }
 
-.account-row[hidden] { display: none; }
-
-.account-row {
+.panel-head-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  padding: 0 16px 10px;
-  font-size: 12px;
-  color: var(--text-dim);
 }
 
-.account-email {
-  min-width: 0;
+.avatar-btn[hidden] { display: none; }
+
+.avatar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.avatar-btn:hover { filter: brightness(1.08); }
+.avatar-btn:active { transform: translateY(1px); }
+
+.account-menu[hidden] { display: none; }
+
+.account-menu {
+  position: absolute;
+  /* Clears the header (100%) plus the tabs row right below it — the menu
+     is narrower than the tabs row, so merely clearing the header isn't
+     enough; it has to drop past the tabs entirely rather than partially
+     cover them. */
+  top: calc(100% + 49px);
+  right: 16px;
+  z-index: 9;
+  width: 220px;
+  padding: 10px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(24px) saturate(1.6);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.account-menu-email {
+  margin: 2px 8px 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.account-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-menu-item:hover { background: var(--surface-2); }
+.account-menu-item-danger { color: var(--danger); }
 
 /* ------------------------------------------------------------- layout */
 
@@ -256,6 +316,7 @@ body {
 }
 
 .panel-head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;

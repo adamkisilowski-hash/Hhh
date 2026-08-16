@@ -1350,9 +1350,18 @@
     });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  /* Geolocation shouldn't be requested — and no watch/poll/timer should be
+   * running — until whoever's behind the sign-in gate is actually confirmed.
+   * auth.js calls this once that's settled, immediately if sign-in isn't
+   * configured at all, so the app boots exactly as it always did in that
+   * case. */
+  function boot() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
   }
+
+  window.Whereabouts = { start: boot, started: false };
 })();

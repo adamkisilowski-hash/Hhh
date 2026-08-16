@@ -1,8 +1,9 @@
 # Whereabouts
 
 A location app that runs entirely in the browser. It shows where you are, tracks
-where you go, and remembers the places you save — with no account, no server, and
-no build step.
+where you go, and remembers the places you save — with no server and no build
+step. An account is entirely optional (see **Accounts** below) and off by
+default; nothing about it is required to use the app.
 
 ## Running it
 
@@ -133,6 +134,8 @@ Four source files plus a small set of icon assets, no dependencies, no toolchain
   than its viewport), and an SVG overlay for the accuracy circle and the track
   (drawn twice, casing under line, so it stays legible over any background)
 - `app.js` — geolocation, formatting, trip maths, storage, and UI wiring
+- `auth.js` — the sign-in gate; see **Accounts** below
+- `firebase-config.js` — your own Firebase project's config, if you set one up
 
 `MiniMap` exists so the app has no mapping-library dependency. It covers what
 this app needs — pan, integer zoom, markers, one circle, one polyline — and
@@ -164,8 +167,52 @@ tiles © [CARTO](https://carto.com/attributions). Both are free for personal use
 and neither is meant to carry production traffic — point `BASEMAP` at your own
 tile source or a paid provider before deploying this anywhere busy.
 
+## Accounts
+
+Sign-in is optional and off by default — the app works exactly as it always
+did, with no gate at all, until you set one up.
+
+To turn it on, you need a free [Firebase](https://firebase.google.com)
+project:
+
+1. [Create a Firebase project](https://console.firebase.google.com) (no credit
+   card required for the free Spark plan).
+2. In the project, go to **Build → Authentication → Get started**, and enable
+   the **Email/Password** sign-in provider.
+3. Go to **Project settings → General → Your apps**, add a **Web app**, and
+   copy the `firebaseConfig` object it shows you.
+4. Paste those four values into `firebase-config.js` in place of the
+   `PLACEHOLDER`s, and deploy.
+
+That's the whole setup — no server, no database schema, nothing else to
+host. The app loads the Firebase Authentication SDK directly from Google's
+CDN, and only once a real config is present; with the placeholder left in
+place, `auth.js` removes the gate and starts the app exactly as before,
+rather than showing a login screen nobody can get past.
+
+The config values in `firebase-config.js` (`apiKey`, `authDomain`,
+`projectId`, `appId`) are not secret — Firebase's own documentation is
+explicit that these identify your project rather than protect it, and are
+safe to commit to a public repo. What actually protects your project is
+Firebase's own security rules, layered on separately.
+
+**Scope, deliberately kept narrow:** signing in only gates access to the app
+itself. Saved places, trip history, and every preference still live only in
+`localStorage` on the device you're using, exactly as before — nothing about
+them is synced to Firebase or any server. A second device, or signing in as a
+different user on the same device, sees its own separate local data, not a
+shared account library. Syncing that data across devices would need a real
+database and security rules behind it — a meaningfully bigger project than
+authentication alone, and not something to take on silently as a side effect
+of adding a login screen.
+
 ## Privacy
 
-Positions never leave the device. There is no analytics, no backend, and no
-network traffic beyond map tile images. If tiles can't load, the app says so and
-everything except the map imagery keeps working.
+Positions never leave the device — trip tracking, saved places, and every
+preference stay in `localStorage`, exactly where they always have. There is
+no analytics and no telemetry. Two things do leave the device: map tile
+images (see below), and — only if you've set up sign-in — the email/password
+you register or sign in with, sent to Firebase to authenticate you. Nothing
+else about your location or activity is sent anywhere, signed in or not. If
+tiles can't load, the app says so and everything except the map imagery keeps
+working.

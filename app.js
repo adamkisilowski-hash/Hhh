@@ -128,6 +128,19 @@
       : (mps * 2.236936292).toFixed(1) + ' mph';
   }
 
+  // Pace — minutes per km/mi — is how walkers and runners actually think
+  // about effort, where a speed-based tile answers a different question.
+  function formatPace(meters, ms) {
+    if (!meters || meters < 10 || !ms) return '—';
+    var units = meters / (isMetric() ? 1000 : 1609.344);
+    var minutesPerUnit = (ms / 60000) / units;
+    if (!isFinite(minutesPerUnit) || minutesPerUnit > 999) return '—';
+    var m = Math.floor(minutesPerUnit);
+    var s = Math.round((minutesPerUnit - m) * 60);
+    if (s === 60) { s = 0; m += 1; }
+    return m + "'" + (s < 10 ? '0' : '') + s + '" /' + (isMetric() ? 'km' : 'mi');
+  }
+
   function formatAltitude(m) {
     if (m == null || isNaN(m)) return '—';
     return isMetric() ? Math.round(m) + ' m' : Math.round(m * 3.280839895) + ' ft';
@@ -753,6 +766,7 @@
     $('trip-distance').textContent = formatDistance(dist);
     $('trip-duration').textContent = formatDuration(elapsed);
     $('trip-avg').textContent = elapsed > 1000 && dist > 0 ? formatSpeed(dist / (elapsed / 1000)) : '—';
+    $('trip-pace').textContent = formatPace(dist, elapsed);
     $('trip-max').textContent = state.maxSpeed > 0 ? formatSpeed(state.maxSpeed) : '—';
     $('trip-points').textContent = String(state.track.length);
     $('trip-climb').textContent = state.climb > 0 ? formatAltitude(state.climb) : '—';

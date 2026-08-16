@@ -78,7 +78,10 @@ to the immersive layout where it doesn't, so it still does something useful on
 iOS Safari. `Esc` or the same button returns.
 
 **Trip** — start recording and the app draws your path on the map and totals
-distance, duration, average and top speed, point count and cumulative climb.
+distance, duration, average and top speed, pace, point count and cumulative
+climb. Pace (minutes per km or mile, the way walkers and runners actually
+think about effort) answers a different question than a speed figure does,
+so both are shown rather than picking one.
 Export the track as GPX for any mapping tool. Live updates and trip recording
 share a single `watchPosition` watch rather than opening two, and the watch is
 released while the page is hidden unless a trip is recording.

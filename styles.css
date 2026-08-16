@@ -144,12 +144,6 @@ body {
   margin-bottom: 22px;
 }
 
-.auth-lang-toggle {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-}
-
 .auth-logo {
   position: relative;
   width: 34px;

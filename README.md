@@ -15,17 +15,52 @@ python3 -m http.server 8080
 ```
 
 Then open <http://localhost:8080>. The browser will ask for location permission
-the first time you tap **Find my location**.
+on its own as soon as the page loads — there's no button to find first.
 
 ## What it does
 
+The map fills the whole screen at every size. Everything else — coordinates,
+trip stats, saved places — lives in a translucent glass sheet anchored to the
+bottom, collapsed by default to a slim bar showing where you are. Tap it (or
+the grip once it's open) to expand or collapse; tapping the map itself while
+it's open collapses it back out of the way, the same as Apple/Google Maps.
+Which tab was open and whether the sheet was left expanded both survive a
+reload.
+
 **Now** — your current latitude and longitude, plus accuracy, altitude, speed and
-heading when the device reports them. Once you've granted permission the readout
-updates by itself as you move, and the map follows — the **Live** pill shows
-that it's running and pauses it when you want the battery back. Panning the map
-by hand stops it recentring on you, without stopping the updates. Toggle between
-decimal degrees and degrees/minutes/seconds, copy the coordinates, share them as
-an OpenStreetMap link, or jump the map to coordinates you paste in.
+heading when the device reports them. The readout updates by itself as you
+move, and the map follows — the **Live** pill shows that it's running and
+pauses it when you want the battery back. Panning the map by hand stops it
+recentring on you, without stopping the updates; the ◎ control forces a fresh
+fix and recenters on demand. Toggle between decimal degrees and
+degrees/minutes/seconds, copy the coordinates, share them as an OpenStreetMap
+link, or jump the map to coordinates you paste in.
+
+When it can, the app names the street you're on — shown above the coordinates
+and, once known, in place of raw numbers in the collapsed sheet's summary
+line. This comes from OSM's free Nominatim reverse-geocoding service, called
+sparingly on purpose: at most once every 12 seconds and only once you've
+actually moved far enough that the street plausibly changed, since it's a
+shared public resource and this stays well inside its usage policy rather
+than hammering it on every 1-second poll. A sudden large jump — jumping to
+pasted coordinates, say — looks up immediately instead of waiting, since a
+stale name right after that would just be wrong rather than merely behind. If
+the lookup fails or the spot has no named road, the coordinates are the
+fallback either way.
+
+Current conditions — temperature and a short description — come from
+[Open-Meteo](https://open-meteo.com), which needs no API key. Refreshed at
+most every 10 minutes, or immediately after travelling far enough (20 km)
+that the weather might actually be different; switching units just reformats
+the reading already in hand rather than asking again.
+
+Between real fixes, the dot doesn't just sit still and jump — while moving at
+walking pace or faster, it's nudged forward using the last fix's own reported
+speed and heading (dead reckoning), so it glides rather than stutters. This is
+purely a rendering effect: the numeric readout, the saved-place coordinates,
+and the trip track only ever see real fixes, never an estimate. A fresh real
+fix always corrects it immediately, and pausing snaps straight back to the
+last real position rather than leaving the dot wherever the estimate drifted.
 
 A precision line under the coordinates grades the current fix — Precise (±20 m
 or better), Good, Approximate, or Coarse — so you can tell a satellite fix from
@@ -43,12 +78,20 @@ to the immersive layout where it doesn't, so it still does something useful on
 iOS Safari. `Esc` or the same button returns.
 
 **Trip** — start recording and the app draws your path on the map and totals
-distance, duration, average and top speed, point count and cumulative climb.
+distance, duration, average and top speed, pace, point count and cumulative
+climb. Pace (minutes per km or mile, the way walkers and runners actually
+think about effort) answers a different question than a speed figure does,
+so both are shown rather than picking one.
 Export the track as GPX for any mapping tool. Live updates and trip recording
 share a single `watchPosition` watch rather than opening two, and the watch is
 released while the page is hidden unless a trip is recording.
 Standing-still GPS jitter is filtered out (hops smaller than half the reported
 accuracy are ignored) so distance doesn't creep upward while you're stationary.
+A trip survives a reload — an accidental refresh, a crashed tab, a phone that
+needed a restart — mid-walk: the track, its stats, and whether it was still
+recording all come back, and recording resumes on its own rather than leaving
+a paused trip you have to notice and restart by hand. A finished-but-unexported
+trip sticks around the same way until you export it or tap **Clear trip**.
 
 **Places** — save the spot you're standing on with a name. Saved places are
 listed nearest-first with distance and compass bearing from your current
@@ -80,9 +123,10 @@ places persist in `localStorage`.
 Four source files plus a small set of icon assets, no dependencies, no toolchain:
 
 - `index.html` — structure
-- `styles.css` — light/dark theming via CSS custom properties; the side panel
-  becomes a bottom sheet under 760px. Map chrome is translucent and blurred over
-  the map rather than sitting on opaque plates.
+- `styles.css` — light/dark theming via CSS custom properties. The map is
+  always full-bleed; a single Liquid-Glass bottom sheet overlays it at every
+  screen size, rather than a side panel on desktop and a different bottom
+  sheet on mobile.
 - `map.js` — `MiniMap`, a small slippy map: Web Mercator projection, pointer
   panning, wheel and pinch zoom, marker layer, swappable basemaps, map rotation
   (one transform over a padded layer, since a rotated square needs to be bigger

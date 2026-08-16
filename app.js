@@ -8,6 +8,7 @@
 
   var STORE_PLACES = 'whereabouts.places';
   var STORE_PREFS = 'whereabouts.prefs';
+  var STORE_TRIP = 'whereabouts.trip';
   var EARTH_RADIUS = 6371008.8; // metres, IUGG mean radius
 
   var $ = function (id) { return document.getElementById(id); };
@@ -21,7 +22,10 @@
     maxSpeed: 0,
     climb: 0,
     places: [],
-    prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'turbo', headingUp: false },
+    prefs: {
+      units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'turbo',
+      headingUp: false, sheetExpanded: false, activeTab: 'now'
+    },
     followMe: true,
     immersive: false,
     advisedOnPrecision: false,
@@ -31,7 +35,31 @@
     heading: null,
     appliedHeading: null,
     compassEvent: null,
-    compassSeen: false
+    compassSeen: false,
+    locateBusy: false,
+    sheetExpanded: false,
+    deadReckonTimer: null,
+    streetName: null,
+    streetLookupAt: 0,
+    streetLookupPoint: null,
+    weather: null,
+    weatherAt: 0,
+    weatherPoint: null
+  };
+
+  // WMO weather codes, as used by Open-Meteo. Collapsed to the common cases —
+  // exact sub-variety (e.g. which of three fog codes) isn't worth showing.
+  var WEATHER_CODES = {
+    0: ['Clear sky', '☀️'], 1: ['Mainly clear', '🌤️'], 2: ['Partly cloudy', '⛅'], 3: ['Overcast', '☁️'],
+    45: ['Fog', '🌫️'], 48: ['Fog', '🌫️'],
+    51: ['Light drizzle', '🌦️'], 53: ['Drizzle', '🌦️'], 55: ['Dense drizzle', '🌦️'],
+    56: ['Freezing drizzle', '🌧️'], 57: ['Freezing drizzle', '🌧️'],
+    61: ['Light rain', '🌧️'], 63: ['Rain', '🌧️'], 65: ['Heavy rain', '🌧️'],
+    66: ['Freezing rain', '🌨️'], 67: ['Freezing rain', '🌨️'],
+    71: ['Light snow', '🌨️'], 73: ['Snow', '🌨️'], 75: ['Heavy snow', '❄️'], 77: ['Snow grains', '🌨️'],
+    80: ['Rain showers', '🌦️'], 81: ['Rain showers', '🌦️'], 82: ['Violent showers', '⛈️'],
+    85: ['Snow showers', '🌨️'], 86: ['Snow showers', '🌨️'],
+    95: ['Thunderstorm', '⛈️'], 96: ['Thunderstorm (hail)', '⛈️'], 99: ['Thunderstorm (hail)', '⛈️']
   };
 
   var map;
@@ -60,6 +88,22 @@
     return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
   }
 
+  // The forward geodesic problem: where do you end up, given a start point,
+  // a bearing, and a distance. Used to dead-reckon the marker forward from
+  // the last real fix between updates.
+  function destinationPoint(lat, lng, bearingDeg, meters) {
+    var delta = meters / EARTH_RADIUS;
+    var theta = toRad(bearingDeg);
+    var phi1 = toRad(lat);
+    var lambda1 = toRad(lng);
+    var phi2 = Math.asin(Math.sin(phi1) * Math.cos(delta) + Math.cos(phi1) * Math.sin(delta) * Math.cos(theta));
+    var lambda2 = lambda1 + Math.atan2(
+      Math.sin(theta) * Math.sin(delta) * Math.cos(phi1),
+      Math.cos(delta) - Math.sin(phi1) * Math.sin(phi2)
+    );
+    return { lat: phi2 * 180 / Math.PI, lng: ((lambda2 * 180 / Math.PI) + 540) % 360 - 180 };
+  }
+
   function compassPoint(deg) {
     var points = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
                   'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
@@ -82,6 +126,19 @@
     return isMetric()
       ? (mps * 3.6).toFixed(1) + ' km/h'
       : (mps * 2.236936292).toFixed(1) + ' mph';
+  }
+
+  // Pace — minutes per km/mi — is how walkers and runners actually think
+  // about effort, where a speed-based tile answers a different question.
+  function formatPace(meters, ms) {
+    if (!meters || meters < 10 || !ms) return '—';
+    var units = meters / (isMetric() ? 1000 : 1609.344);
+    var minutesPerUnit = (ms / 60000) / units;
+    if (!isFinite(minutesPerUnit) || minutesPerUnit > 999) return '—';
+    var m = Math.floor(minutesPerUnit);
+    var s = Math.round((minutesPerUnit - m) * 60);
+    if (s === 60) { s = 0; m += 1; }
+    return m + "'" + (s < 10 ? '0' : '') + s + '" /' + (isMetric() ? 'km' : 'mi');
   }
 
   function formatAltitude(m) {
@@ -138,9 +195,19 @@
     }, 2600);
   }
 
+  // Errors (permission denied, insecure context) matter more than the
+  // merely informational warnings (offline tiles, a coarse fix) — without
+  // this, whichever happened to fire last would silently win, and since
+  // both auto-locate and tile loading now kick off immediately on load,
+  // that race is no longer rare enough to leave to chance.
+  var BANNER_PRIORITY = { error: 2, warn: 1, precision: 1 };
+
   function banner(message, kind) {
     var el = $('banner');
     if (!message) { el.hidden = true; return; }
+    var shown = (BANNER_PRIORITY[kind] || 0);
+    var current = el.hidden ? -1 : (BANNER_PRIORITY[el.dataset.kind] || 0);
+    if (shown < current) return;
     // Only the text node is replaced — the dismiss button lives alongside it.
     $('banner-text').textContent = message;
     el.className = 'banner' + (kind ? ' banner-' + kind : '');
@@ -187,6 +254,16 @@
         if (k in state.prefs) state.prefs[k] = prefs[k];
       });
     } catch (e) { /* defaults are fine */ }
+    try {
+      var trip = JSON.parse(localStorage.getItem(STORE_TRIP) || 'null');
+      if (trip && Array.isArray(trip.track)) {
+        state.track = trip.track;
+        state.trackStart = trip.trackStart || null;
+        state.tracking = !!trip.tracking;
+        state.maxSpeed = trip.maxSpeed || 0;
+        state.climb = trip.climb || 0;
+      }
+    } catch (e) { /* no trip to resume */ }
   }
 
   function savePlaces() {
@@ -195,6 +272,18 @@
     } catch (e) {
       toast('Could not save — storage is full or blocked.');
     }
+  }
+
+  // Recording a trip is exactly the situation where losing everything to an
+  // accidental reload or a crashed tab would sting most, so this is saved on
+  // every accepted point rather than only when you explicitly stop.
+  function saveTrip() {
+    try {
+      localStorage.setItem(STORE_TRIP, JSON.stringify({
+        track: state.track, trackStart: state.trackStart,
+        tracking: state.tracking, maxSpeed: state.maxSpeed, climb: state.climb
+      }));
+    } catch (e) { /* non-fatal — the trip just won't survive a reload */ }
   }
 
   function savePrefs() {
@@ -247,9 +336,9 @@
   }
 
   function setLocateBusy(busy) {
-    var btn = $('locate');
-    btn.classList.toggle('is-busy', busy);
-    $('locate-label').textContent = busy ? 'Locating…' : (state.position ? 'Update location' : 'Find my location');
+    state.locateBusy = busy;
+    $('recenter').classList.toggle('is-busy', busy);
+    renderSheetSummary();
   }
 
   /* One watch serves both jobs: keeping the readout live, and recording a
@@ -286,6 +375,51 @@
     state.watchId = null;
     clearInterval(state.pollTimer);
     state.pollTimer = null;
+    stopDeadReckoning();
+  }
+
+  /* Dead reckoning: watchPosition/poll only deliver a handful of fixes per
+   * second at best, so on a moving device the dot would otherwise sit still
+   * and then jump. Between real fixes, nudge the marker forward from the
+   * last one using its own reported speed and heading — real GPS chips
+   * already report both, so this needs no extra sensor. Purely a rendering
+   * effect: state.position, the numeric readout, and the track never see
+   * anything but real fixes, so nothing estimated can end up saved, shared,
+   * or exported. */
+  function startDeadReckoning() {
+    if (state.deadReckonTimer) return;
+    state.deadReckonTimer = setInterval(tickDeadReckoning, 200);
+  }
+
+  function stopDeadReckoning() {
+    if (!state.deadReckonTimer) return;
+    clearInterval(state.deadReckonTimer);
+    state.deadReckonTimer = null;
+    // Undo any drift the last few ticks introduced — once extrapolation
+    // isn't actively running, the dot should only ever sit where the last
+    // real fix put it.
+    if (state.position) {
+      var c = state.position.coords;
+      map.setMarker('me', c.latitude, c.longitude, 'mm-marker-me', 'You are here');
+      map.setAccuracy(c.latitude, c.longitude, c.accuracy);
+    }
+  }
+
+  function tickDeadReckoning() {
+    var pos = state.position;
+    if (!pos) return;
+    var c = pos.coords;
+    // Below walking pace this would just be amplifying GPS speed noise into
+    // a wandering dot; heading is meaningless without real movement anyway.
+    if (c.speed == null || c.speed < 0.3 || c.heading == null || isNaN(c.heading)) return;
+    var elapsed = (Date.now() - pos.timestamp) / 1000;
+    // A fix that's gotten this stale isn't worth extrapolating further —
+    // freeze rather than compound a guess on top of a guess.
+    if (elapsed <= 0 || elapsed > 20) return;
+    var dest = destinationPoint(c.latitude, c.longitude, c.heading, c.speed * elapsed);
+    map.setMarker('me', dest.lat, dest.lng, 'mm-marker-me', 'You are here');
+    map.setAccuracy(dest.lat, dest.lng, c.accuracy);
+    if (state.followMe) map.setView(dest.lat, dest.lng, null);
   }
 
   /* watchPosition only fires when the device decides you've moved far enough,
@@ -336,8 +470,11 @@
 
   // Hold the watch open while either job still wants it, and not otherwise.
   function syncWatch() {
-    if (state.prefs.live || state.tracking) startWatch();
-    else stopWatch();
+    if (state.prefs.live || state.tracking) {
+      if (startWatch()) startDeadReckoning();
+    } else {
+      stopWatch();
+    }
     syncPoll();
     renderLive();
   }
@@ -355,6 +492,7 @@
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.title = on ? 'Location updates automatically — tap to pause' : 'Updates paused — tap to resume';
     $('live-label').textContent = on ? 'Live' : 'Paused';
+    renderSheetSummary();
   }
 
   function startTracking() {
@@ -364,6 +502,7 @@
     $('track-toggle').textContent = 'Stop tracking';
     $('track-toggle').classList.add('is-active');
     renderLive();
+    saveTrip();
     toast('Recording trip');
   }
 
@@ -373,6 +512,7 @@
     $('track-toggle').classList.remove('is-active');
     // Live updates outlive the trip, so only drop the watch if nothing wants it.
     syncWatch();
+    saveTrip();
   }
 
   /* A GPS that has just dropped to Wi-Fi or cell positioning reports a fix
@@ -416,6 +556,93 @@
            : 'Check your device location settings and allow precise location for this site.'), 'precision');
   }
 
+  /* Nominatim is a free, shared public service, so this stays well inside
+   * its usage policy on purpose: at most one lookup every 12s, and only
+   * when we've actually moved far enough that the street has probably
+   * changed — a sudden large jump (jump-to-coordinates, a teleporting fix)
+   * bypasses the wait, since a 12s-stale street name right after that would
+   * just be wrong rather than merely a little behind. */
+  function maybeLookUpStreet(lat, lng) {
+    var last = state.streetLookupPoint;
+    var due = true;
+    if (last) {
+      var moved = distance(last, { lat: lat, lng: lng });
+      var elapsed = Date.now() - state.streetLookupAt;
+      due = moved > 300 || (moved > 30 && elapsed > 12000);
+    }
+    if (!due) return;
+    state.streetLookupAt = Date.now();
+    state.streetLookupPoint = { lat: lat, lng: lng };
+    reverseGeocode(lat, lng);
+  }
+
+  function reverseGeocode(lat, lng) {
+    var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' +
+      encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng) + '&zoom=17&addressdetails=1';
+    fetch(url, { headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        var a = data && data.address;
+        // Nominatim's address fields vary by what's actually mapped there —
+        // fall back through the closest things to "a street" it offers.
+        var name = a && (a.road || a.pedestrian || a.footway || a.cycleway || a.path);
+        state.streetName = name || null;
+        renderStreet();
+        renderSheetSummary();
+      })
+      .catch(function () { /* offline or rate-limited — coordinates remain the fallback */ });
+  }
+
+  function renderStreet() {
+    var row = $('street-row');
+    row.hidden = !state.streetName;
+    if (state.streetName) $('street-name').textContent = state.streetName;
+  }
+
+  /* Weather doesn't need Nominatim's care — Open-Meteo has no key and a
+   * generous free tier — but there's still no reason to ask again every
+   * time a fix arrives: conditions don't meaningfully change minute to
+   * minute, so refresh at most every 10 minutes, or immediately after
+   * travelling far enough (20 km) that local weather might actually differ. */
+  function maybeFetchWeather(lat, lng) {
+    var last = state.weatherPoint;
+    var due = true;
+    if (last) {
+      var moved = distance(last, { lat: lat, lng: lng });
+      var elapsed = Date.now() - state.weatherAt;
+      due = moved > 20000 || elapsed > 600000;
+    }
+    if (!due) return;
+    state.weatherAt = Date.now();
+    state.weatherPoint = { lat: lat, lng: lng };
+    fetchWeather(lat, lng);
+  }
+
+  function fetchWeather(lat, lng) {
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + encodeURIComponent(lat) +
+      '&longitude=' + encodeURIComponent(lng) + '&current=temperature_2m,weather_code&timezone=auto';
+    fetch(url)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        var cur = data && data.current;
+        if (!cur || cur.temperature_2m == null) return;
+        state.weather = { tempC: cur.temperature_2m, code: cur.weather_code };
+        renderWeather();
+      })
+      .catch(function () { /* offline — the row just stays hidden */ });
+  }
+
+  function renderWeather() {
+    var row = $('weather-row');
+    if (!state.weather) { row.hidden = true; return; }
+    var info = WEATHER_CODES[state.weather.code] || ['—', '🌡️'];
+    var tempC = state.weather.tempC;
+    var tempText = isMetric() ? Math.round(tempC) + '°C' : Math.round(tempC * 9 / 5 + 32) + '°F';
+    $('weather-icon').textContent = info[1];
+    $('weather-text').textContent = tempText + ' · ' + info[0];
+    row.hidden = false;
+  }
+
   function handlePosition(pos, recenter) {
     if (!recenter && isWorseFix(pos)) return;
     state.position = pos;
@@ -430,6 +657,8 @@
     };
 
     if (state.tracking) appendTrackPoint(point);
+    maybeLookUpStreet(point.lat, point.lng);
+    maybeFetchWeather(point.lat, point.lng);
 
     map.setMarker('me', point.lat, point.lng, 'mm-marker-me', 'You are here');
     map.setAccuracy(point.lat, point.lng, c.accuracy);
@@ -474,6 +703,7 @@
     state.track.push(point);
     map.setTrack(state.track);
     renderTrip();
+    saveTrip();
   }
 
   function trackDistance() {
@@ -498,7 +728,6 @@
       : '—';
     $('fix-age').textContent = 'Fix from ' + relativeTime(pos.timestamp) +
       (state.tracking ? ' · recording trip' : '');
-    $('locate-label').textContent = 'Update location';
 
     var quality = precisionOf(c.accuracy);
     $('precision').dataset.quality = quality.key;
@@ -512,6 +741,23 @@
     $('hud-coords').textContent = c.latitude.toFixed(5) + ', ' + c.longitude.toFixed(5);
     $('hud-meta').textContent = (c.accuracy != null ? '±' + formatDistance(c.accuracy) : '') +
       (c.speed != null && !isNaN(c.speed) ? ' · ' + formatSpeed(c.speed) : '');
+
+    renderSheetSummary();
+  }
+
+  // The collapsed sheet's one line of text — coordinates until something
+  // more useful (like a street name) is available, and never blank.
+  function renderSheetSummary() {
+    var dot = $('sheet-status-dot');
+    var text = $('sheet-summary-text');
+    if (!dot || !text) return;
+    dot.classList.toggle('is-live', !!(state.prefs.live && state.watchId != null));
+    if (!state.position) {
+      text.textContent = state.locateBusy ? 'Finding you…' : 'Location unavailable';
+      return;
+    }
+    var c = state.position.coords;
+    text.textContent = state.streetName || (c.latitude.toFixed(4) + ', ' + c.longitude.toFixed(4));
   }
 
   function renderTrip() {
@@ -520,6 +766,7 @@
     $('trip-distance').textContent = formatDistance(dist);
     $('trip-duration').textContent = formatDuration(elapsed);
     $('trip-avg').textContent = elapsed > 1000 && dist > 0 ? formatSpeed(dist / (elapsed / 1000)) : '—';
+    $('trip-pace').textContent = formatPace(dist, elapsed);
     $('trip-max').textContent = state.maxSpeed > 0 ? formatSpeed(state.maxSpeed) : '—';
     $('trip-points').textContent = String(state.track.length);
     $('trip-climb').textContent = state.climb > 0 ? formatAltitude(state.climb) : '—';
@@ -797,26 +1044,48 @@
     $('theme-color').setAttribute('content', prefersDark() ? '#0d1117' : '#f5f6f8');
   }
 
+  function activateTab(name) {
+    document.querySelectorAll('.tab').forEach(function (t) {
+      var active = t.dataset.tab === name;
+      t.classList.toggle('is-active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('.tab-panel').forEach(function (p) {
+      p.classList.toggle('is-active', p.dataset.panel === name);
+    });
+  }
+
+  function setSheetExpanded(on) {
+    state.sheetExpanded = on;
+    state.prefs.sheetExpanded = on;
+    savePrefs();
+    $('sheet').dataset.state = on ? 'expanded' : 'collapsed';
+    $('sheet-handle').setAttribute('aria-expanded', on ? 'true' : 'false');
+    $('sheet-handle').setAttribute('aria-label', on ? 'Collapse details' : 'Expand details');
+  }
+
   function wireUI() {
-    $('locate').addEventListener('click', locateOnce);
+    // Recenter now doubles as "find me": one control, always a fresh fix,
+    // rather than a separate always-visible pill for the same job.
     $('zoom-in').addEventListener('click', function () { map.zoomBy(1); });
     $('zoom-out').addEventListener('click', function () { map.zoomBy(-1); });
-    $('recenter').addEventListener('click', function () {
-      if (!state.position) { locateOnce(); return; }
-      state.followMe = true;
-      map.setView(state.position.coords.latitude, state.position.coords.longitude, 16);
+    $('recenter').addEventListener('click', locateOnce);
+
+    $('sheet-handle').addEventListener('click', function () {
+      setSheetExpanded(!state.sheetExpanded);
+    });
+
+    // Tapping the map while the sheet is open gets it out of the way, same
+    // as Apple/Google Maps — but a drag is a pan, not a dismissal.
+    map.on('click', function () {
+      if (state.sheetExpanded) setSheetExpanded(false);
     });
 
     document.querySelectorAll('.tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
-        document.querySelectorAll('.tab').forEach(function (t) {
-          var active = t === tab;
-          t.classList.toggle('is-active', active);
-          t.setAttribute('aria-selected', active ? 'true' : 'false');
-        });
-        document.querySelectorAll('.tab-panel').forEach(function (p) {
-          p.classList.toggle('is-active', p.dataset.panel === tab.dataset.tab);
-        });
+        activateTab(tab.dataset.tab);
+        state.prefs.activeTab = tab.dataset.tab;
+        savePrefs();
       });
     });
 
@@ -834,6 +1103,7 @@
       renderNow();
       renderTrip();
       renderPlaces();
+      renderWeather();
     });
 
     $('rate-toggle').addEventListener('click', function () {
@@ -960,6 +1230,7 @@
       state.climb = 0;
       map.setTrack([]);
       renderTrip();
+      saveTrip();
       toast('Trip cleared');
     });
 
@@ -1018,8 +1289,13 @@
     $('theme-toggle').textContent = state.prefs.theme;
     $('rate-toggle').textContent = rateLabel();
 
+    // Remembers where you left the sheet and which tab was open.
+    activateTab(state.prefs.activeTab || 'now');
+    setSheetExpanded(!!state.prefs.sheetExpanded);
+
     wireUI();
     renderLive();
+    renderSheetSummary();
     renderCompass();
     // Heading-up needs a gesture on iOS, so a saved preference re-arms the
     // control rather than silently starting the compass.
@@ -1027,6 +1303,15 @@
     syncPlaceMarkers();
     renderPlaces();
     renderTrip();
+
+    // A trip in progress (or just finished but not cleared) survives a
+    // reload — restore its polyline and the recording button's own state;
+    // syncWatch() below picks the watch back up if it was still recording.
+    if (state.track.length) map.setTrack(state.track);
+    if (state.tracking) {
+      $('track-toggle').textContent = 'Stop tracking';
+      $('track-toggle').classList.add('is-active');
+    }
 
     if (!window.isSecureContext) {
       banner('Geolocation needs a secure context. Open this page over https:// or from http://localhost.', 'warn');
@@ -1038,15 +1323,18 @@
       if (state.tracking) renderTrip();
     }, 1000);
 
-    // A granted permission means we can locate, and go live, without a prompt.
+    // Geolocation prompts don't need a prior click the way more sensitive
+    // APIs do, so ask right away rather than waiting for a tap — locateOnce()
+    // already handles "unsupported" and "insecure context" via its own banner.
+    locateOnce();
+
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions.query({ name: 'geolocation' }).then(function (status) {
-        if (status.state === 'granted') locateOnce();
         status.addEventListener('change', function () {
           if (status.state === 'granted') syncWatch();
           else stopWatch();
         });
-      }).catch(function () { /* Safari and friends: wait for the tap */ });
+      }).catch(function () { /* Safari and friends: no permission-change tracking */ });
     }
 
     // A hidden tab can't show a live readout, so stop drawing on the GPS for

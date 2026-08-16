@@ -1,6 +1,7 @@
 /* Whereabouts — styles.
- * Light palette on :root, dark overrides in one place, and a layout that
- * flips from side panel to bottom sheet at narrow widths.
+ * Light palette on :root, dark overrides in one place. The map is always
+ * full-bleed; a single Liquid-Glass bottom sheet overlays it at every
+ * screen size, collapsed to a minimal bar by default.
  */
 
 :root {
@@ -25,7 +26,8 @@
   --glass-border: rgba(15, 23, 42, 0.10);
   --shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 8px 24px rgba(15, 23, 42, 0.08);
   --radius: 12px;
-  --panel-width: 360px;
+  --sheet-max-w: 420px;
+  --sheet-collapsed-h: 68px;
 }
 
 :root[data-theme="dark"],
@@ -99,25 +101,13 @@ body {
 /* ------------------------------------------------------------- layout */
 
 .app {
-  display: flex;
+  position: relative;
   height: 100%;
 }
 
 .stage {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-}
-
-.panel {
-  width: var(--panel-width);
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  border-left: 1px solid var(--border);
-  overflow-y: auto;
-  padding-bottom: env(safe-area-inset-bottom);
+  position: absolute;
+  inset: 0;
 }
 
 .panel-head {
@@ -136,7 +126,6 @@ body {
 }
 
 .panel-foot {
-  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -328,7 +317,7 @@ body {
 
 /* --------------------------------------------------------- immersive */
 
-body.is-immersive .panel { display: none; }
+body.is-immersive .sheet { display: none; }
 
 /* .hud sets display, which would otherwise beat the UA's [hidden] rule. */
 .hud[hidden] { display: none; }
@@ -363,40 +352,127 @@ body.is-immersive .panel { display: none; }
   color: var(--text-dim);
 }
 
-.locate-btn {
-  position: absolute;
+/* A busy recenter button IS the "locating…" indicator now that there's no
+   separate pill for it — the whole glyph blinks rather than a dot inside it. */
+.mc-btn.is-busy { animation: blink 1s steps(2, start) infinite; }
+
+@keyframes blink { 50% { opacity: 0.35; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-btn.is-busy { animation: none; opacity: 0.6; }
+}
+
+/* ------------------------------------------------------------- sheet */
+
+.sheet {
+  position: fixed;
   left: 50%;
-  bottom: 20px;
+  bottom: 0;
+  z-index: 7;
+  width: 100%;
+  max-width: var(--sheet-max-w);
+  max-height: var(--sheet-collapsed-h);
   transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 11px 20px;
-  border: none;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--accent-text);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(28px) saturate(1.7);
+  backdrop-filter: blur(28px) saturate(1.7);
+  border: 1px solid var(--glass-border);
+  border-bottom: none;
+  border-radius: 22px 22px 0 0;
   box-shadow: var(--shadow);
-  z-index: 5;
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.locate-btn:active { transform: translateX(-50%) translateY(1px); }
+.sheet[data-state="expanded"] { max-height: 78vh; }
 
-.locate-dot {
-  width: 9px;
-  height: 9px;
+/* A bright hairline along the top edge stands in for the way a real glass
+   surface catches light at its boundary — the core "Liquid Glass" cue. */
+.sheet::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  pointer-events: none;
+}
+
+.sheet-handle {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px 12px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sheet-grip {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--glass-border);
+}
+
+.sheet-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 20px;
+}
+
+/* Expanded, the active tab already shows this same information in full —
+   repeating it above the header would just be noise. The grip stays, as
+   the one consistent way to collapse again. */
+.sheet[data-state="expanded"] .sheet-summary { display: none; }
+.sheet[data-state="expanded"] .sheet-handle { padding-bottom: 4px; }
+
+.sheet-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--text-dim);
 }
 
-.locate-btn.is-busy .locate-dot {
-  animation: blink 1s steps(2, start) infinite;
+.sheet-status-dot.is-live {
+  background: var(--accent);
+  animation: livepulse 2s ease-in-out infinite;
 }
 
-@keyframes blink { 50% { opacity: 0.2; } }
+.sheet-summary-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+
+.sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet { transition: none; }
+}
 
 .banner {
   display: flex;
@@ -480,6 +556,21 @@ body.is-immersive .panel { display: none; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px 14px;
+}
+
+.street-row[hidden] { display: none; }
+
+.street-row {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.street-name::before {
+  content: "on ";
+  font-weight: 400;
+  color: var(--text-dim);
 }
 
 .coord-format {
@@ -574,6 +665,23 @@ body.is-immersive .panel { display: none; }
   margin: 12px 0;
 }
 
+.weather-row[hidden] { display: none; }
+
+.weather-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.weather-icon { font-size: 16px; line-height: 1; }
+.weather-text { font-weight: 500; }
+
 .live-row {
   display: flex;
   align-items: center;
@@ -633,9 +741,9 @@ body.is-immersive .panel { display: none; }
 .btn {
   flex: 1 1 auto;
   padding: 9px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
   font-size: 14px;
@@ -644,16 +752,20 @@ body.is-immersive .panel { display: none; }
   white-space: nowrap;
 }
 
-.btn:hover { background: var(--surface-2); }
+.btn:hover { background: var(--glass-hover); }
 .btn:active { transform: translateY(1px); }
 
 .btn-primary {
-  background: var(--accent);
+  /* Tinted glass rather than a flat fill — the accent shows through instead
+     of sitting as an opaque block, the same idea as the map chrome. */
+  background: color-mix(in srgb, var(--accent) 88%, transparent);
   border-color: var(--accent);
   color: var(--accent-text);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
 }
 
-.btn-primary:hover { filter: brightness(1.08); background: var(--accent); }
+.btn-primary:hover { filter: brightness(1.08); }
 
 .btn-primary.is-active {
   background: var(--danger);
@@ -793,7 +905,7 @@ body.is-immersive .panel { display: none; }
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 76px;
+  bottom: calc(var(--sheet-collapsed-h) + 20px);
   transform: translate(-50%, 8px);
   padding: 9px 16px;
   border-radius: 999px;
@@ -815,22 +927,8 @@ body.is-immersive .panel { display: none; }
 
 /* ------------------------------------------------------- narrow view */
 
-@media (max-width: 760px) {
-  .app { flex-direction: column; }
-
-  .stage { flex: 1 1 45%; min-height: 240px; }
-
-  .panel {
-    width: 100%;
-    flex: 1 1 55%;
-    border-left: none;
-    border-top: 1px solid var(--border);
-    border-radius: 16px 16px 0 0;
-    margin-top: -16px;
-    z-index: 8;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
-  }
-
-  .locate-btn { bottom: 34px; }
-  .toast { bottom: 50%; }
+@media (max-width: 480px) {
+  /* Below this the sheet's own max-width no longer binds, so it's already
+     flush with the screen edges — just relax the corner radius to match. */
+  .sheet { border-radius: 18px 18px 0 0; }
 }

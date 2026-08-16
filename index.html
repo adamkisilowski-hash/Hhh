@@ -31,7 +31,7 @@
     <div class="map-controls" role="group" aria-label="Map controls">
       <button id="zoom-in" class="mc-btn" title="Zoom in" aria-label="Zoom in">+</button>
       <button id="zoom-out" class="mc-btn" title="Zoom out" aria-label="Zoom out">−</button>
-      <button id="recenter" class="mc-btn" title="Recenter on me" aria-label="Recenter on me">◎</button>
+      <button id="recenter" class="mc-btn" title="Find and center on me" aria-label="Find and center on me">◎</button>
       <button id="compass" class="mc-btn" title="North up — tap to follow your heading" aria-label="Follow device heading" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
           <g id="compass-needle" style="transform-origin:center">
@@ -57,14 +57,18 @@
       <span id="banner-text"></span>
       <button id="banner-close" class="banner-close" aria-label="Dismiss">×</button>
     </div>
-
-    <button id="locate" class="locate-btn">
-      <span class="locate-dot"></span>
-      <span id="locate-label">Find my location</span>
-    </button>
   </main>
 
-  <aside class="panel">
+  <div id="sheet" class="sheet" data-state="collapsed">
+    <button id="sheet-handle" class="sheet-handle" aria-expanded="false" aria-controls="sheet-body" aria-label="Expand details">
+      <span class="sheet-grip" aria-hidden="true"></span>
+      <span class="sheet-summary">
+        <span id="sheet-status-dot" class="sheet-status-dot"></span>
+        <span id="sheet-summary-text" class="sheet-summary-text">Finding you…</span>
+      </span>
+    </button>
+
+    <div id="sheet-body" class="sheet-body">
     <header class="panel-head">
       <h1>Whereabouts</h1>
       <button id="theme-toggle" class="ghost-btn" title="Switch theme" aria-label="Switch theme">auto</button>
@@ -79,6 +83,9 @@
     <section class="tab-panel is-active" data-panel="now" role="tabpanel">
       <div class="coords">
         <button id="coord-format" class="coord-format" title="Switch coordinate format">decimal</button>
+        <div id="street-row" class="street-row" hidden>
+          <span id="street-name" class="street-name"></span>
+        </div>
         <div class="coord-row">
           <span class="coord-label">Latitude</span>
           <span id="lat" class="coord-value">—</span>
@@ -98,6 +105,11 @@
         <div class="stat"><span class="stat-label">Altitude</span><span id="altitude" class="stat-value">—</span></div>
         <div class="stat"><span class="stat-label">Speed</span><span id="speed" class="stat-value">—</span></div>
         <div class="stat"><span class="stat-label">Heading</span><span id="heading" class="stat-value">—</span></div>
+      </div>
+
+      <div id="weather-row" class="weather-row" hidden>
+        <span id="weather-icon" class="weather-icon" aria-hidden="true"></span>
+        <span id="weather-text" class="weather-text"></span>
       </div>
 
       <div class="live-row">
@@ -128,6 +140,7 @@
         <div class="stat"><span class="stat-label">Distance</span><span id="trip-distance" class="stat-value">0 m</span></div>
         <div class="stat"><span class="stat-label">Duration</span><span id="trip-duration" class="stat-value">0:00</span></div>
         <div class="stat"><span class="stat-label">Avg speed</span><span id="trip-avg" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label">Pace</span><span id="trip-pace" class="stat-value">—</span></div>
         <div class="stat"><span class="stat-label">Top speed</span><span id="trip-max" class="stat-value">—</span></div>
         <div class="stat"><span class="stat-label">Points</span><span id="trip-points" class="stat-value">0</span></div>
         <div class="stat"><span class="stat-label">Climb</span><span id="trip-climb" class="stat-value">—</span></div>
@@ -154,7 +167,8 @@
       </span>
       <span class="attrib">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a></span>
     </footer>
-  </aside>
+    </div>
+  </div>
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

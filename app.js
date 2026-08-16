@@ -21,10 +21,12 @@
     maxSpeed: 0,
     climb: 0,
     places: [],
-    prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true },
+    prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'fast' },
     followMe: true,
     immersive: false,
-    advisedOnPrecision: false
+    advisedOnPrecision: false,
+    pollTimer: null,
+    pollStartedAt: 0
   };
 
   var map;
@@ -254,27 +256,83 @@
       clearBanner('error');
       handlePosition(pos, false);
     }, function (err) {
-      banner(geoErrorMessage(err), 'error');
       if (err.code === err.PERMISSION_DENIED) {
+        banner(geoErrorMessage(err), 'error');
         state.prefs.live = false;
         savePrefs();
         stopTracking();
         stopWatch();
         renderLive();
+        return;
       }
-    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 });
+      /* A watch that times out or briefly loses the satellites is routine, and
+       * shouting about it while a current fix is on screen is just noise — the
+       * watch and the poll both keep trying. Only speak up once the position
+       * shown has actually gone stale. */
+      var stale = !state.position || (Date.now() - state.position.timestamp) > 60000;
+      if (stale) banner(geoErrorMessage(err), 'error');
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
     return true;
   }
 
   function stopWatch() {
     if (state.watchId != null) navigator.geolocation.clearWatch(state.watchId);
     state.watchId = null;
+    clearInterval(state.pollTimer);
+    state.pollTimer = null;
+  }
+
+  /* watchPosition only fires when the device decides you've moved far enough,
+   * which on a stationary phone can mean nothing for a minute. Polling for a
+   * fresh fix alongside it keeps the readout genuinely current — at a rate the
+   * user picks, because this is the expensive part of the battery bill. */
+  var RATES = { fast: 2000, normal: 5000, saver: 15000 };
+
+  // Long enough that a slow fix isn't abandoned, short enough that a stuck one
+  // doesn't hold up the next attempt for long.
+  function pollTimeout() {
+    return Math.max(5000, (RATES[state.prefs.rate] || RATES.fast) * 2);
+  }
+
+  function pollNow() {
+    if (!state.prefs.live && !state.tracking) return;
+    if (document.hidden && !state.tracking) return;
+
+    /* Keep one request outstanding at a time, but expire the guard with the
+     * request's own timeout: some providers answer neither callback, and a
+     * plain boolean would then wedge polling for the rest of the session. */
+    var now = Date.now();
+    if (state.pollStartedAt && now - state.pollStartedAt < pollTimeout()) return;
+    state.pollStartedAt = now;
+
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      state.pollStartedAt = 0;
+      clearBanner('error');
+      handlePosition(pos, false);
+    }, function () {
+      // A missed poll isn't worth a banner — the watch reports real errors,
+      // and the next poll is seconds away.
+      state.pollStartedAt = 0;
+    }, { enableHighAccuracy: true, timeout: pollTimeout(), maximumAge: 0 });
+  }
+
+  function rateLabel() {
+    return 'every ' + (RATES[state.prefs.rate] || RATES.fast) / 1000 + 's';
+  }
+
+  function syncPoll() {
+    clearInterval(state.pollTimer);
+    state.pollTimer = null;
+    if (state.watchId == null) return;
+    if (!state.prefs.live && !state.tracking) return;
+    state.pollTimer = setInterval(pollNow, RATES[state.prefs.rate] || RATES.fast);
   }
 
   // Hold the watch open while either job still wants it, and not otherwise.
   function syncWatch() {
     if (state.prefs.live || state.tracking) startWatch();
     else stopWatch();
+    syncPoll();
     renderLive();
   }
 
@@ -593,10 +651,27 @@
 
   /* ----------------------------------------------------------------- init */
 
+  /* CARTO's Positron and Dark Matter, at @2x so the labels stay sharp on
+   * dense screens. A native dark basemap beats inverting a light one: an
+   * inverted map gets the ground right but turns every label into a
+   * photographic negative. */
+  var BASEMAP = {
+    light: 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+    dark: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
+  };
+
+  function prefersDark() {
+    var theme = state.prefs.theme;
+    if (theme === 'dark') return true;
+    if (theme === 'light') return false;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
   function applyTheme() {
     var theme = state.prefs.theme;
     document.documentElement.dataset.theme = theme === 'auto' ? '' : theme;
     if (theme === 'auto') delete document.documentElement.dataset.theme;
+    if (map) map.setTileUrl(prefersDark() ? BASEMAP.dark : BASEMAP.light);
   }
 
   function wireUI() {
@@ -636,6 +711,15 @@
       renderNow();
       renderTrip();
       renderPlaces();
+    });
+
+    $('rate-toggle').addEventListener('click', function () {
+      var order = ['fast', 'normal', 'saver'];
+      state.prefs.rate = order[(order.indexOf(state.prefs.rate) + 1) % order.length];
+      this.textContent = rateLabel();
+      savePrefs();
+      syncPoll();
+      if (state.prefs.live || state.tracking) pollNow();
     });
 
     $('theme-toggle').addEventListener('click', function () {
@@ -779,11 +863,21 @@
     applyTheme();
 
     var start = parseHash() || { lat: 20, lng: 0, zoom: 3 };
+    start.tileUrl = prefersDark() ? BASEMAP.dark : BASEMAP.light;
     map = new MiniMap($('map'), start);
+
+    // Follow the OS theme while the app is set to auto.
+    if (window.matchMedia) {
+      var dark = window.matchMedia('(prefers-color-scheme: dark)');
+      var onSchemeChange = function () { if (state.prefs.theme === 'auto') applyTheme(); };
+      if (dark.addEventListener) dark.addEventListener('change', onSchemeChange);
+      else if (dark.addListener) dark.addListener(onSchemeChange);
+    }
 
     $('coord-format').textContent = state.prefs.coordFormat;
     $('unit-toggle').textContent = state.prefs.units;
     $('theme-toggle').textContent = state.prefs.theme;
+    $('rate-toggle').textContent = rateLabel();
 
     wireUI();
     renderLive();

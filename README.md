@@ -54,35 +54,47 @@ accuracy are ignored) so distance doesn't creep upward while you're stationary.
 listed nearest-first with distance and compass bearing from your current
 position, drawn as pins on the map, and exportable as JSON.
 
-Preferences (metric/imperial, coordinate format, theme) and saved places persist
-in `localStorage`.
+**Refreshing** — `watchPosition` only reports when the device decides you've
+moved, which on a stationary phone can mean silence for a minute. A poll runs
+alongside it for a genuinely current readout, at a rate you choose from the
+footer: every 2s, 5s or 15s. This is the expensive part of the battery bill, so
+it's a control rather than a fixed choice, and the Live pill pauses it outright.
+
+Preferences (metric/imperial, coordinate format, theme, refresh rate) and saved
+places persist in `localStorage`.
 
 ## How it's built
 
-Three files, no dependencies, no toolchain:
+Four files, no dependencies, no toolchain:
 
 - `index.html` — structure
 - `styles.css` — light/dark theming via CSS custom properties; the side panel
-  becomes a bottom sheet under 760px. OSM publishes one light tile set, so dark
-  mode inverts the tile layer and rotates the hue back, keeping water blue and
-  parks green without a second tile source.
-- `map.js` — `MiniMap`, a small slippy map over OpenStreetMap tiles: Web
-  Mercator projection, pointer panning, wheel and pinch zoom, marker layer, and
-  an SVG overlay for the accuracy circle and track polyline
+  becomes a bottom sheet under 760px. Map chrome is translucent and blurred over
+  the map rather than sitting on opaque plates.
+- `map.js` — `MiniMap`, a small slippy map: Web Mercator projection, pointer
+  panning, wheel and pinch zoom, marker layer, swappable basemaps, and an SVG
+  overlay for the accuracy circle and the track (drawn twice, casing under
+  line, so it stays legible over any background)
 - `app.js` — geolocation, formatting, trip maths, storage, and UI wiring
 
-`MiniMap` exists so the app has no CDN dependency. It covers what this app needs
+`MiniMap` exists so the app has no mapping-library dependency. It covers what this app needs
 — pan, integer zoom, markers, one circle, one polyline — and deliberately not
 much else.
+
+## The basemap
+
+Tiles come from CARTO's Positron (light) and Dark Matter (dark) styles at `@2x`,
+which are minimal enough that your position and track stay the loudest things on
+screen. Having a real dark basemap beats inverting a light one: inversion gets
+the ground right but turns every label into a photographic negative.
+
+Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors,
+tiles © [CARTO](https://carto.com/attributions). Both are free for personal use
+and neither is meant to carry production traffic — point `BASEMAP` at your own
+tile source or a paid provider before deploying this anywhere busy.
 
 ## Privacy
 
 Positions never leave the device. There is no analytics, no backend, and no
-network traffic beyond map tile images fetched from `tile.openstreetmap.org`. If
-tiles can't load, the app says so and everything except the map imagery keeps
-working.
-
-Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
-Tiles come from the public OSM tile servers, which are fine for personal use but
-are not meant to carry production traffic — point `tileUrl` at your own tile
-source (or a provider) before deploying this anywhere busy.
+network traffic beyond map tile images. If tiles can't load, the app says so and
+everything except the map imagery keeps working.

@@ -20,6 +20,9 @@
   --warn-text: #6b4c00;
   --error-bg: #fde3e1;
   --error-text: #8a221b;
+  --glass: rgba(255, 255, 255, 0.82);
+  --glass-hover: rgba(255, 255, 255, 0.96);
+  --glass-border: rgba(15, 23, 42, 0.10);
   --shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 8px 24px rgba(15, 23, 42, 0.08);
   --radius: 12px;
   --panel-width: 360px;
@@ -48,6 +51,9 @@
     --warn-text: #f2d488;
     --error-bg: #45201d;
     --error-text: #ffb4ad;
+    --glass: rgba(22, 27, 34, 0.78);
+    --glass-hover: rgba(28, 35, 44, 0.94);
+    --glass-border: rgba(255, 255, 255, 0.12);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
   }
 }
@@ -69,6 +75,9 @@
   --warn-text: #f2d488;
   --error-bg: #45201d;
   --error-text: #ffb4ad;
+  --glass: rgba(22, 27, 34, 0.78);
+  --glass-hover: rgba(28, 35, 44, 0.94);
+  --glass-border: rgba(255, 255, 255, 0.12);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
@@ -140,6 +149,11 @@ body {
 
 .attrib a { color: inherit; }
 
+.foot-controls {
+  display: flex;
+  gap: 6px;
+}
+
 /* --------------------------------------------------------------- map */
 
 .map {
@@ -182,26 +196,19 @@ body {
 .mm-tile.is-loaded { opacity: 1; }
 .mm-tile.is-error { opacity: 0; }
 
-/* OSM serves one light tile set, so dark mode inverts it and spins the hue
- * back so water and parks keep their colours. The filter is scoped to the
- * tile layer — markers, track and accuracy circle sit in sibling layers and
- * must not be inverted with it. */
-:root[data-theme="dark"] .mm-tiles {
-  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.85);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .mm-tiles {
-    filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.85);
-  }
-}
-
 .mm-track {
   stroke: var(--accent);
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
-  opacity: 0.85;
+}
+
+.mm-track-casing {
+  stroke: var(--surface);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
 }
 
 .mm-accuracy {
@@ -258,11 +265,10 @@ body {
   width: 12px;
   height: 12px;
   margin: -6px 0 0 -6px;
-  border-radius: 50% 50% 50% 0;
-  transform-origin: center;
+  border-radius: 50%;
   background: var(--text);
-  border: 2px solid var(--surface);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  border: 2.5px solid var(--surface);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
 }
 
 /* ---------------------------------------------------------- controls */
@@ -278,19 +284,22 @@ body {
 }
 
 .mc-btn {
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
   color: var(--text);
   font-size: 17px;
   line-height: 1;
   cursor: pointer;
   box-shadow: var(--shadow);
+  transition: background 0.15s ease, transform 0.1s ease;
 }
 
-.mc-btn:hover { background: var(--surface-2); }
+.mc-btn:hover { background: var(--glass-hover); }
 .mc-btn:active { transform: translateY(1px); }
 
 .mc-btn svg { display: block; margin: 0 auto; }
@@ -315,9 +324,11 @@ body.is-immersive .panel { display: none; }
   flex-direction: column;
   gap: 2px;
   padding: 9px 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
   box-shadow: var(--shadow);
   max-width: calc(100% - 24px);
 }

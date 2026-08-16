@@ -20,13 +20,18 @@ the first time you tap **Find my location**.
 ## What it does
 
 **Now** — your current latitude and longitude, plus accuracy, altitude, speed and
-heading when the device reports them. Toggle between decimal degrees and
-degrees/minutes/seconds, copy the coordinates, share them as an OpenStreetMap
-link, or jump the map to coordinates you paste in.
+heading when the device reports them. Once you've granted permission the readout
+updates by itself as you move, and the map follows — the **Live** pill shows
+that it's running and pauses it when you want the battery back. Panning the map
+by hand stops it recentring on you, without stopping the updates. Toggle between
+decimal degrees and degrees/minutes/seconds, copy the coordinates, share them as
+an OpenStreetMap link, or jump the map to coordinates you paste in.
 
-**Trip** — start tracking and the app keeps a live location watch open, drawing
-your path on the map and totalling distance, duration, average and top speed,
-point count and cumulative climb. Export the track as GPX for any mapping tool.
+**Trip** — start recording and the app draws your path on the map and totals
+distance, duration, average and top speed, point count and cumulative climb.
+Export the track as GPX for any mapping tool. Live updates and trip recording
+share a single `watchPosition` watch rather than opening two, and the watch is
+released while the page is hidden unless a trip is recording.
 Standing-still GPS jitter is filtered out (hops smaller than half the reported
 accuracy are ignored) so distance doesn't creep upward while you're stationary.
 

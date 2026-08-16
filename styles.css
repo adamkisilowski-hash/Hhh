@@ -451,6 +451,53 @@ body {
   margin: 12px 0;
 }
 
+.live-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.live-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.live-btn.is-live {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.live-btn.is-live .live-dot {
+  background: var(--accent);
+  animation: livepulse 2s ease-in-out infinite;
+}
+
+@keyframes livepulse { 50% { opacity: 0.25; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .live-btn.is-live .live-dot { animation: none; }
+}
+
 /* ----------------------------------------------------------- buttons */
 
 .actions {

@@ -61,7 +61,12 @@
         <div class="stat"><span class="stat-label">Heading</span><span id="heading" class="stat-value">—</span></div>
       </div>
 
-      <p id="fix-age" class="muted">No fix yet.</p>
+      <div class="live-row">
+        <p id="fix-age" class="muted">No fix yet.</p>
+        <button id="live-toggle" class="live-btn" aria-pressed="true" title="Location updates automatically — tap to pause">
+          <span class="live-dot"></span><span id="live-label">Live</span>
+        </button>
+      </div>
 
       <div class="actions">
         <button id="copy" class="btn">Copy coordinates</button>

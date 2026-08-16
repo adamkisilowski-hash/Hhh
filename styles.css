@@ -176,6 +176,13 @@ body {
 
 .minimap.is-dragging { cursor: grabbing; }
 
+.mm-rotator {
+  position: absolute;
+  inset: 0;
+  transform-origin: center;
+  will-change: transform;
+}
+
 .mm-tiles, .mm-markers, .mm-overlay {
   position: absolute;
   inset: 0;
@@ -303,6 +310,17 @@ body {
 .mc-btn:active { transform: translateY(1px); }
 
 .mc-btn svg { display: block; margin: 0 auto; }
+
+#compass.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+#compass-needle { transition: transform 0.12s linear; }
+
+@media (prefers-reduced-motion: reduce) {
+  #compass-needle { transition: none; }
+}
 
 .fs-collapse { display: none; }
 #fullscreen[aria-pressed="true"] .fs-expand { display: none; }

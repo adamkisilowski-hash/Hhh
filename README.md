@@ -54,11 +54,23 @@ accuracy are ignored) so distance doesn't creep upward while you're stationary.
 listed nearest-first with distance and compass bearing from your current
 position, drawn as pins on the map, and exportable as JSON.
 
+**Heading up** — the compass control turns the map so it points the way your
+device is pointing, with the needle staying true to north and every marker
+counter-rotated to stay upright. It uses `webkitCompassHeading` on iOS (behind
+the permission prompt that platform requires, which is why it's a button press)
+and absolute `deviceorientation` elsewhere, corrects for the screen's own
+rotation, and low-pass filters the reading — raw magnetometer output is far too
+jittery to drive a map. Devices without a magnetometer say so rather than
+leaving a toggle that does nothing.
+
 **Refreshing** — `watchPosition` only reports when the device decides you've
 moved, which on a stationary phone can mean silence for a minute. A poll runs
 alongside it for a genuinely current readout, at a rate you choose from the
-footer: every 2s, 5s or 15s. This is the expensive part of the battery bill, so
-it's a control rather than a fixed choice, and the Live pill pauses it outright.
+footer: every 1s, 2s, 5s or 15s, defaulting to 1s. Consumer GNSS chips fix at
+about 1 Hz, so 1s is the practical ceiling — polling faster returns the same
+fix twice and only costs battery. This is the expensive part of the battery
+bill, so it's a control rather than a fixed choice, and the Live pill pauses it
+outright.
 
 Preferences (metric/imperial, coordinate format, theme, refresh rate) and saved
 places persist in `localStorage`.
@@ -72,9 +84,10 @@ Four files, no dependencies, no toolchain:
   becomes a bottom sheet under 760px. Map chrome is translucent and blurred over
   the map rather than sitting on opaque plates.
 - `map.js` — `MiniMap`, a small slippy map: Web Mercator projection, pointer
-  panning, wheel and pinch zoom, marker layer, swappable basemaps, and an SVG
-  overlay for the accuracy circle and the track (drawn twice, casing under
-  line, so it stays legible over any background)
+  panning, wheel and pinch zoom, marker layer, swappable basemaps, map rotation
+  (one transform over a padded layer, since a rotated square needs to be bigger
+  than its viewport), and an SVG overlay for the accuracy circle and the track
+  (drawn twice, casing under line, so it stays legible over any background)
 - `app.js` — geolocation, formatting, trip maths, storage, and UI wiring
 
 `MiniMap` exists so the app has no mapping-library dependency. It covers what this app needs

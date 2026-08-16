@@ -135,6 +135,9 @@
       'route.etaHourMin': '{h}h {m}min',
       'route.etaHour': '{h}h',
       'route.failed': 'Could not calculate a route. Check your connection.',
+      'route.profileTitle': 'Travel mode for navigation',
+      'route.profileWalking': 'walking',
+      'route.profileDriving': 'driving',
 
       'controls.zoomIn': 'Zoom in',
       'controls.zoomOut': 'Zoom out',
@@ -320,6 +323,9 @@
       'route.etaHourMin': '{h} Std. {m} Min.',
       'route.etaHour': '{h} Std.',
       'route.failed': 'Route konnte nicht berechnet werden. Prüfe deine Verbindung.',
+      'route.profileTitle': 'Fortbewegungsart für die Navigation',
+      'route.profileWalking': 'zu Fuß',
+      'route.profileDriving': 'mit dem Auto',
 
       'controls.zoomIn': 'Vergrößern',
       'controls.zoomOut': 'Verkleinern',
@@ -505,6 +511,9 @@
       'route.etaHourMin': '{h} godz. {m} min',
       'route.etaHour': '{h} godz.',
       'route.failed': 'Nie udało się obliczyć trasy. Sprawdź połączenie.',
+      'route.profileTitle': 'Sposób poruszania się w nawigacji',
+      'route.profileWalking': 'pieszo',
+      'route.profileDriving': 'samochodem',
 
       'controls.zoomIn': 'Powiększ',
       'controls.zoomOut': 'Pomniejsz',

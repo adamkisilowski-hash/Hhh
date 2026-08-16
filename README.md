@@ -120,8 +120,15 @@ rate-limiting of its own.
 **Navigate** — tap the arrow next to a saved place (once navigation is set
 up — see below) to draw a route there from where you're standing: a dashed
 line on the map, framed to fit both ends, with distance and an ETA shown
-back in the Now tab. This is a route preview, not turn-by-turn guidance — one
-request, drawn once; it doesn't reroute as you move, and the live position
+back in the Now tab. Tapping that summary breaks it down into numbered
+steps — collapsed by default, since a longer walk can easily run past 20 of
+them — each with its own instruction and distance. The instruction text
+comes straight from OpenRouteService itself, already written in whichever
+of the app's three languages is active, rather than being translated
+locally: these are dynamic sentences naming real streets, not fixed UI text
+`i18n.js` could handle on its own. This is a route preview, not live
+turn-by-turn guidance — one request, drawn and broken down once; it doesn't
+reroute as you move or track which step you're on, and the live position
 dot keeps updating exactly as it always has, independently of whatever
 route is on screen. Walking is the assumed profile, matching the app's own
 pace stat and trip tracking; `ROUTE_PROFILE` in `app.js` is the one line to

@@ -166,9 +166,12 @@
 
       <div id="route-row" class="route-row" hidden>
         <span class="route-icon" aria-hidden="true">🧭</span>
-        <span id="route-text" class="route-text"></span>
+        <button id="route-summary-toggle" class="route-summary-toggle" type="button" aria-expanded="false" aria-controls="route-steps">
+          <span id="route-text" class="route-text"></span>
+        </button>
         <button id="route-clear" class="route-clear" type="button" data-i18n-aria="route.stop">×</button>
       </div>
+      <ol id="route-steps" class="route-steps" hidden></ol>
 
       <div class="live-row">
         <p id="fix-age" class="muted" data-i18n="toast.noFix">No fix yet.</p>

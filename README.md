@@ -66,6 +66,11 @@ share a single `watchPosition` watch rather than opening two, and the watch is
 released while the page is hidden unless a trip is recording.
 Standing-still GPS jitter is filtered out (hops smaller than half the reported
 accuracy are ignored) so distance doesn't creep upward while you're stationary.
+A trip survives a reload — an accidental refresh, a crashed tab, a phone that
+needed a restart — mid-walk: the track, its stats, and whether it was still
+recording all come back, and recording resumes on its own rather than leaving
+a paused trip you have to notice and restart by hand. A finished-but-unexported
+trip sticks around the same way until you export it or tap **Clear trip**.
 
 **Places** — save the spot you're standing on with a name. Saved places are
 listed nearest-first with distance and compass bearing from your current

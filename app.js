@@ -8,6 +8,7 @@
 
   var STORE_PLACES = 'whereabouts.places';
   var STORE_PREFS = 'whereabouts.prefs';
+  var STORE_TRIP = 'whereabouts.trip';
   var EARTH_RADIUS = 6371008.8; // metres, IUGG mean radius
 
   var $ = function (id) { return document.getElementById(id); };
@@ -220,6 +221,16 @@
         if (k in state.prefs) state.prefs[k] = prefs[k];
       });
     } catch (e) { /* defaults are fine */ }
+    try {
+      var trip = JSON.parse(localStorage.getItem(STORE_TRIP) || 'null');
+      if (trip && Array.isArray(trip.track)) {
+        state.track = trip.track;
+        state.trackStart = trip.trackStart || null;
+        state.tracking = !!trip.tracking;
+        state.maxSpeed = trip.maxSpeed || 0;
+        state.climb = trip.climb || 0;
+      }
+    } catch (e) { /* no trip to resume */ }
   }
 
   function savePlaces() {
@@ -228,6 +239,18 @@
     } catch (e) {
       toast('Could not save — storage is full or blocked.');
     }
+  }
+
+  // Recording a trip is exactly the situation where losing everything to an
+  // accidental reload or a crashed tab would sting most, so this is saved on
+  // every accepted point rather than only when you explicitly stop.
+  function saveTrip() {
+    try {
+      localStorage.setItem(STORE_TRIP, JSON.stringify({
+        track: state.track, trackStart: state.trackStart,
+        tracking: state.tracking, maxSpeed: state.maxSpeed, climb: state.climb
+      }));
+    } catch (e) { /* non-fatal — the trip just won't survive a reload */ }
   }
 
   function savePrefs() {
@@ -446,6 +469,7 @@
     $('track-toggle').textContent = 'Stop tracking';
     $('track-toggle').classList.add('is-active');
     renderLive();
+    saveTrip();
     toast('Recording trip');
   }
 
@@ -455,6 +479,7 @@
     $('track-toggle').classList.remove('is-active');
     // Live updates outlive the trip, so only drop the watch if nothing wants it.
     syncWatch();
+    saveTrip();
   }
 
   /* A GPS that has just dropped to Wi-Fi or cell positioning reports a fix
@@ -556,6 +581,7 @@
     state.track.push(point);
     map.setTrack(state.track);
     renderTrip();
+    saveTrip();
   }
 
   function trackDistance() {
@@ -1080,6 +1106,7 @@
       state.climb = 0;
       map.setTrack([]);
       renderTrip();
+      saveTrip();
       toast('Trip cleared');
     });
 
@@ -1152,6 +1179,15 @@
     syncPlaceMarkers();
     renderPlaces();
     renderTrip();
+
+    // A trip in progress (or just finished but not cleared) survives a
+    // reload — restore its polyline and the recording button's own state;
+    // syncWatch() below picks the watch back up if it was still recording.
+    if (state.track.length) map.setTrack(state.track);
+    if (state.tracking) {
+      $('track-toggle').textContent = 'Stop tracking';
+      $('track-toggle').classList.add('is-active');
+    }
 
     if (!window.isSecureContext) {
       banner('Geolocation needs a secure context. Open this page over https:// or from http://localhost.', 'warn');

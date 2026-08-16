@@ -238,6 +238,15 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
+  // A small triangular waypoint arrow, rotated to the bearing from here to
+  // the place — inherits the accent color of the meta line it sits in
+  // rather than carrying its own, so light/dark theming needs no extra work.
+  function waypointArrowSvg(bearingDeg) {
+    return '<svg class="place-arrow" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true" ' +
+      'style="transform:rotate(' + Math.round(bearingDeg) + 'deg)">' +
+      '<path d="M12 2.5 L17 15.5 L12 12.7 L7 15.5 Z" fill="currentColor"/></svg>';
+  }
+
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -795,14 +804,19 @@
         var li = document.createElement('li');
         li.className = 'place';
 
+        // Only meaningful relative to where you're currently standing — with
+        // no fix yet there's nothing for it to point from, so it's omitted
+        // rather than drawn pointing nowhere.
+        var brg = here ? bearing(here, place) : null;
         var meta = here
-          ? formatDistance(distance(here, place)) + ' · ' + compassPoint(bearing(here, place))
-          : new Date(place.savedAt).toLocaleDateString();
+          ? formatDistance(distance(here, place)) + ' · ' + compassPoint(brg)
+          : new Date(place.savedAt).toLocaleDateString(I18N.getLang());
+        var arrow = brg != null ? waypointArrowSvg(brg) : '';
 
         li.innerHTML =
           '<button class="place-main" type="button">' +
             '<span class="place-name">' + escapeHtml(place.name) + '</span>' +
-            '<span class="place-meta">' + escapeHtml(meta) + '</span>' +
+            '<span class="place-meta">' + arrow + escapeHtml(meta) + '</span>' +
             '<span class="place-coords">' + place.lat.toFixed(5) + ', ' + place.lng.toFixed(5) + '</span>' +
           '</button>' +
           '<button class="place-del" type="button" title="' + escapeHtml(t('places.deleteTitle')) + '" aria-label="' + escapeHtml(t('places.deleteAria', { name: place.name })) + '">×</button>';

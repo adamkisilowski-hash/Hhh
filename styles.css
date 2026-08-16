@@ -1136,9 +1136,15 @@ body.is-immersive .sheet { display: none; }
 }
 
 .place-meta {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 3px;
   font-size: 13px;
   color: var(--accent);
+}
+
+.place-arrow {
+  flex: none;
 }
 
 .place-coords {

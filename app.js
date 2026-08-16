@@ -791,6 +791,10 @@
     document.documentElement.dataset.theme = theme === 'auto' ? '' : theme;
     if (theme === 'auto') delete document.documentElement.dataset.theme;
     if (map) map.setTileUrl(prefersDark() ? BASEMAP.dark : BASEMAP.light);
+
+    // Matches --bg exactly, so the browser/OS chrome blends with the page
+    // rather than the OS scheme and the in-app override disagreeing.
+    $('theme-color').setAttribute('content', prefersDark() ? '#0d1117' : '#f5f6f8');
   }
 
   function wireUI() {

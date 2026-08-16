@@ -77,7 +77,7 @@ places persist in `localStorage`.
 
 ## How it's built
 
-Four files, no dependencies, no toolchain:
+Four source files plus a small set of icon assets, no dependencies, no toolchain:
 
 - `index.html` — structure
 - `styles.css` — light/dark theming via CSS custom properties; the side panel
@@ -90,9 +90,23 @@ Four files, no dependencies, no toolchain:
   (drawn twice, casing under line, so it stays legible over any background)
 - `app.js` — geolocation, formatting, trip maths, storage, and UI wiring
 
-`MiniMap` exists so the app has no mapping-library dependency. It covers what this app needs
-— pan, integer zoom, markers, one circle, one polyline — and deliberately not
-much else.
+`MiniMap` exists so the app has no mapping-library dependency. It covers what
+this app needs — pan, integer zoom, markers, one circle, one polyline — and
+deliberately not much else.
+
+## Icon
+
+`favicon.svg` is the source of truth — a white bullseye on the app's own accent
+blue, echoing the "you are here" marker drawn on the map itself, so the tab
+icon and the home-screen icon are recognizably the same app. Every raster size
+(`favicon-16/32/48.png`, `apple-touch-icon.png`, `icon-192/512.png`, and a
+maskable 512 for Android's adaptive-icon safe zone) is rendered from that one
+SVG rather than hand-edited, so a redesign only ever touches one file.
+`manifest.webmanifest` wires the icons up for "Add to Home Screen" as a
+standalone app (no browser chrome), and the page's `theme-color` meta tag
+tracks the app's own light/dark choice — OS auto or an explicit override —
+rather than only the OS scheme, so the browser/status bar always matches the
+background actually on screen.
 
 ## The basemap
 

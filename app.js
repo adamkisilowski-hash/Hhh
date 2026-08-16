@@ -22,9 +22,10 @@
   // that would just fail every time it's pressed.
   var ORS_CONFIG = window.WHEREABOUTS_ORS_CONFIG || {};
   var ORS_CONFIGURED = !!(ORS_CONFIG.apiKey && ORS_CONFIG.apiKey !== 'PLACEHOLDER');
-  // Walking, to match the app's own pace stat and trip-tracking framing —
-  // change to 'driving-car' or 'cycling-regular' for a different default.
-  var ROUTE_PROFILE = 'foot-walking';
+  // Walking is the default, matching the app's own pace stat and trip-
+  // tracking framing — the footer toggle switches to driving; add another
+  // entry here (and to ROUTE_PROFILE_KEYS below) for e.g. cycling-regular.
+  var ROUTE_PROFILES = ['foot-walking', 'driving-car'];
 
   var state = {
     position: null,      // most recent GeolocationPosition
@@ -37,7 +38,7 @@
     places: [],
     prefs: {
       units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'turbo',
-      headingUp: false, sheetExpanded: false, activeTab: 'now'
+      headingUp: false, sheetExpanded: false, activeTab: 'now', routeProfile: 'foot-walking'
     },
     followMe: true,
     immersive: false,
@@ -722,7 +723,7 @@
     if (state.routeBusy) return;
     state.routeBusy = true;
     var c = state.position.coords;
-    var url = 'https://api.openrouteservice.org/v2/directions/' + ROUTE_PROFILE + '/geojson';
+    var url = 'https://api.openrouteservice.org/v2/directions/' + state.prefs.routeProfile + '/geojson';
     fetch(url, {
       method: 'POST',
       headers: { Authorization: ORS_CONFIG.apiKey, 'Content-Type': 'application/json' },
@@ -1273,12 +1274,20 @@
   var COORD_KEYS = { decimal: 'toggles.coordDecimal', dms: 'toggles.coordDms' };
   var UNIT_KEYS = { metric: 'toggles.unitsMetric', imperial: 'toggles.unitsImperial' };
   var THEME_KEYS = { auto: 'toggles.themeAuto', light: 'toggles.themeLight', dark: 'toggles.themeDark' };
+  var ROUTE_PROFILE_KEYS = { 'foot-walking': 'route.profileWalking', 'driving-car': 'route.profileDriving' };
 
   function applyToggleLabels() {
     $('coord-format').textContent = t(COORD_KEYS[state.prefs.coordFormat]);
     $('unit-toggle').textContent = t(UNIT_KEYS[state.prefs.units]);
     $('theme-toggle').textContent = t(THEME_KEYS[state.prefs.theme]);
     $('rate-toggle').textContent = rateLabel();
+    // Hidden entirely when navigation isn't configured — same call every
+    // other ORS-dependent control makes, rather than showing a preference
+    // for a feature that doesn't do anything yet.
+    if (ORS_CONFIGURED) {
+      $('route-profile-toggle').hidden = false;
+      $('route-profile-toggle').textContent = t(ROUTE_PROFILE_KEYS[state.prefs.routeProfile]);
+    }
   }
 
   function wireUI() {
@@ -1342,6 +1351,13 @@
     });
 
     $('lang-toggle').addEventListener('click', function () { I18N.cycleLang(); });
+
+    $('route-profile-toggle').addEventListener('click', function () {
+      var i = ROUTE_PROFILES.indexOf(state.prefs.routeProfile);
+      state.prefs.routeProfile = ROUTE_PROFILES[(i + 1) % ROUTE_PROFILES.length];
+      savePrefs();
+      applyToggleLabels();
+    });
 
     $('copy').addEventListener('click', function () {
       if (!state.position) { toast(t('toast.noFix')); return; }

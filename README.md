@@ -130,11 +130,14 @@ locally: these are dynamic sentences naming real streets, not fixed UI text
 turn-by-turn guidance — one request, drawn and broken down once; it doesn't
 reroute as you move or track which step you're on, and the live position
 dot keeps updating exactly as it always has, independently of whatever
-route is on screen. Walking is the assumed profile, matching the app's own
-pace stat and trip tracking; `ROUTE_PROFILE` in `app.js` is the one line to
-change for driving or cycling instead. A destination with no viable route,
-or a request that just fails, says so rather than leaving the button
-looking like it did nothing.
+route is on screen. Walking is the default, matching the app's own pace stat
+and trip tracking, but a **walking**/**driving** pill sits in the footer
+next to the units and refresh-rate toggles (hidden, like Navigate itself,
+until navigation is set up) — tap it to switch, and every **Navigate** tap
+afterward uses whichever mode is currently selected, remembered the same
+way every other preference here is. A destination with no viable route, or
+a request that just fails, says so rather than leaving the button looking
+like it did nothing.
 
 **Heading up** — the compass control turns the map so it points the way your
 device is pointing, with the needle staying true to north and every marker

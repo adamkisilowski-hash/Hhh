@@ -1146,6 +1146,8 @@ body.is-immersive .sheet { display: none; }
 
 .btn-wide { width: 100%; }
 
+.ghost-btn[hidden] { display: none; }
+
 .ghost-btn {
   display: inline-flex;
   align-items: center;

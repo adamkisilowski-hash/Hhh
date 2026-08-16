@@ -21,7 +21,7 @@
     maxSpeed: 0,
     climb: 0,
     places: [],
-    prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto' },
+    prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true },
     followMe: true
   };
 
@@ -228,6 +228,8 @@
       clearBanner('error');
       state.followMe = true;
       handlePosition(pos, true);
+      // Permission is granted now, so the readout can start keeping itself current.
+      syncWatch();
     }, function (err) {
       setLocateBusy(false);
       banner(geoErrorMessage(err), 'error');
@@ -240,28 +242,71 @@
     $('locate-label').textContent = busy ? 'Locating…' : (state.position ? 'Update location' : 'Find my location');
   }
 
-  function startTracking() {
-    if (!preflight()) return;
-    state.tracking = true;
-    state.trackStart = state.trackStart || Date.now();
-    $('track-toggle').textContent = 'Stop tracking';
-    $('track-toggle').classList.add('is-active');
+  /* One watch serves both jobs: keeping the readout live, and recording a
+   * trip. Running two would ask the GPS for the same fixes twice. */
+
+  function startWatch() {
+    if (state.watchId != null) return true;
+    if (!preflight()) return false;
     state.watchId = navigator.geolocation.watchPosition(function (pos) {
       clearBanner('error');
       handlePosition(pos, false);
     }, function (err) {
       banner(geoErrorMessage(err), 'error');
-      if (err.code === err.PERMISSION_DENIED) stopTracking();
+      if (err.code === err.PERMISSION_DENIED) {
+        state.prefs.live = false;
+        savePrefs();
+        stopTracking();
+        stopWatch();
+        renderLive();
+      }
     }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 });
-    toast('Tracking started');
+    return true;
+  }
+
+  function stopWatch() {
+    if (state.watchId != null) navigator.geolocation.clearWatch(state.watchId);
+    state.watchId = null;
+  }
+
+  // Hold the watch open while either job still wants it, and not otherwise.
+  function syncWatch() {
+    if (state.prefs.live || state.tracking) startWatch();
+    else stopWatch();
+    renderLive();
+  }
+
+  function setLive(on) {
+    state.prefs.live = on;
+    savePrefs();
+    syncWatch();
+  }
+
+  function renderLive() {
+    var on = state.prefs.live;
+    var btn = $('live-toggle');
+    btn.classList.toggle('is-live', on && state.watchId != null);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.title = on ? 'Location updates automatically — tap to pause' : 'Updates paused — tap to resume';
+    $('live-label').textContent = on ? 'Live' : 'Paused';
+  }
+
+  function startTracking() {
+    state.tracking = true;
+    if (!startWatch()) { state.tracking = false; return; }
+    state.trackStart = state.trackStart || Date.now();
+    $('track-toggle').textContent = 'Stop tracking';
+    $('track-toggle').classList.add('is-active');
+    renderLive();
+    toast('Recording trip');
   }
 
   function stopTracking() {
-    if (state.watchId != null) navigator.geolocation.clearWatch(state.watchId);
-    state.watchId = null;
     state.tracking = false;
     $('track-toggle').textContent = 'Start tracking';
     $('track-toggle').classList.remove('is-active');
+    // Live updates outlive the trip, so only drop the watch if nothing wants it.
+    syncWatch();
   }
 
   function handlePosition(pos, recenter) {
@@ -344,7 +389,7 @@
       ? Math.round(c.heading) + '° ' + compassPoint(c.heading)
       : '—';
     $('fix-age').textContent = 'Fix from ' + relativeTime(pos.timestamp) +
-      (state.tracking ? ' · tracking live' : '');
+      (state.tracking ? ' · recording trip' : '');
     $('locate-label').textContent = 'Update location';
   }
 
@@ -560,10 +605,18 @@
       map.setView(parsed.lat, parsed.lng, 15);
     });
 
+    $('live-toggle').addEventListener('click', function () {
+      if (state.tracking && state.prefs.live) {
+        toast('Stop the trip recording first.');
+        return;
+      }
+      setLive(!state.prefs.live);
+    });
+
     $('track-toggle').addEventListener('click', function () {
       if (state.tracking) {
         stopTracking();
-        toast('Tracking stopped');
+        toast(state.prefs.live ? 'Trip saved · still live' : 'Trip recording stopped');
       } else {
         startTracking();
       }
@@ -623,6 +676,7 @@
     $('theme-toggle').textContent = state.prefs.theme;
 
     wireUI();
+    renderLive();
     syncPlaceMarkers();
     renderPlaces();
     renderTrip();
@@ -637,12 +691,28 @@
       if (state.tracking) renderTrip();
     }, 1000);
 
-    // A granted permission means we can locate without a second prompt.
+    // A granted permission means we can locate, and go live, without a prompt.
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions.query({ name: 'geolocation' }).then(function (status) {
         if (status.state === 'granted') locateOnce();
+        status.addEventListener('change', function () {
+          if (status.state === 'granted') syncWatch();
+          else stopWatch();
+        });
       }).catch(function () { /* Safari and friends: wait for the tap */ });
     }
+
+    // A hidden tab can't show a live readout, so stop drawing on the GPS for
+    // one. A trip in progress is different — that has to keep recording.
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) {
+        if (!state.tracking) stopWatch();
+      } else if (state.position) {
+        // Only resume once we've had a fix — never spring a permission
+        // prompt on someone just for switching back to the tab.
+        syncWatch();
+      }
+    });
   }
 
   if (document.readyState === 'loading') {

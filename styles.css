@@ -979,12 +979,64 @@ body.is-immersive .sheet { display: none; }
 
 .route-icon { font-size: 16px; line-height: 1; }
 
+.route-summary-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .route-text {
   flex: 1;
   min-width: 0;
   font-weight: 500;
   color: var(--accent);
 }
+
+/* A plain triangle rather than a real icon — this is the one place in the
+   app that needed an expand/collapse indicator outside <details>, whose
+   native marker already covers the address/coordinate disclosures. */
+.route-summary-toggle::after {
+  content: "▸";
+  flex: none;
+  color: var(--accent);
+  font-size: 11px;
+  transition: transform 0.15s ease;
+}
+
+.route-summary-toggle[aria-expanded="true"]::after { transform: rotate(90deg); }
+
+.route-steps[hidden] { display: none; }
+
+.route-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 8px 11px 8px 28px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12.5px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.route-step {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.route-step-instruction { flex: 1; min-width: 0; }
+.route-step-dist { flex: none; color: var(--text-dim); white-space: nowrap; }
 
 .route-clear {
   flex: none;

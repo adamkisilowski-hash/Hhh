@@ -700,10 +700,14 @@
 
   /* --------------------------------------------------------- navigation */
 
-  /* A route preview, not turn-by-turn guidance: one request when you tap
-   * Navigate, drawn once, shown with a distance/ETA summary. It doesn't
-   * reroute as you move — the live position dot keeps updating exactly as
-   * it always has, entirely independently of whatever route is on screen. */
+  /* A route preview, not live turn-by-turn guidance: one request when you
+   * tap Navigate, drawn once, broken down into the same numbered steps
+   * OpenRouteService itself would read out — asked for in whichever of the
+   * app's three languages is active, since these are dynamic sentences
+   * naming real streets rather than fixed UI text i18n.js could translate
+   * itself. It doesn't reroute as you move or track which step you're on;
+   * the live position dot keeps updating exactly as it always has,
+   * entirely independently of whatever route is on screen. */
 
   function formatEta(seconds) {
     if (seconds == null || isNaN(seconds)) return '—';
@@ -722,7 +726,11 @@
     fetch(url, {
       method: 'POST',
       headers: { Authorization: ORS_CONFIG.apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ coordinates: [[c.longitude, c.latitude], [place.lng, place.lat]] })
+      body: JSON.stringify({
+        coordinates: [[c.longitude, c.latitude], [place.lng, place.lat]],
+        instructions: true,
+        language: I18N.getLang()
+      })
     })
       .then(function (r) {
         if (!r.ok) throw new Error('route request failed: ' + r.status);
@@ -733,12 +741,16 @@
         var coords = feature && feature.geometry && feature.geometry.coordinates;
         if (!coords || coords.length < 2) throw new Error('no route geometry');
         var points = coords.map(function (pair) { return { lat: pair[1], lng: pair[0] }; });
-        var summary = feature.properties && feature.properties.summary;
+        var props = feature.properties || {};
+        var summary = props.summary;
+        var segment = props.segments && props.segments[0];
         state.route = {
           place: place,
           points: points,
           distance: summary ? summary.distance : null,
-          duration: summary ? summary.duration : null
+          duration: summary ? summary.duration : null,
+          steps: (segment && segment.steps) || [],
+          stepsOpen: false
         };
         map.setRoute(points);
         map.fitBounds(points, 56);
@@ -760,15 +772,45 @@
     renderRoute();
   }
 
+  function toggleRouteSteps() {
+    if (!state.route) return;
+    state.route.stepsOpen = !state.route.stepsOpen;
+    renderRouteSteps();
+  }
+
   function renderRoute() {
     var row = $('route-row');
-    if (!state.route) { row.hidden = true; return; }
+    if (!state.route) { row.hidden = true; renderRouteSteps(); return; }
     $('route-text').textContent = t('route.summary', {
       name: state.route.place.name,
       distance: formatDistance(state.route.distance),
       duration: formatEta(state.route.duration)
     });
     row.hidden = false;
+    renderRouteSteps();
+  }
+
+  // The numbered breakdown behind the summary line — collapsed by default,
+  // same as the other disclosures in this app, since a longer walk can
+  // easily run to 20+ steps. Instruction text comes straight from
+  // OpenRouteService already in the active language; only the per-step
+  // distance is formatted locally, so it respects the metric/imperial toggle.
+  function renderRouteSteps() {
+    var toggle = $('route-summary-toggle');
+    var list = $('route-steps');
+    var steps = state.route ? state.route.steps : [];
+    var open = !!(state.route && state.route.stepsOpen && steps.length);
+
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    list.hidden = !open;
+    if (!open) return;
+
+    list.innerHTML = steps.map(function (step) {
+      return '<li class="route-step">' +
+        '<span class="route-step-instruction">' + escapeHtml(step.instruction || step.name || '') + '</span>' +
+        '<span class="route-step-dist">' + escapeHtml(formatDistance(step.distance)) + '</span>' +
+      '</li>';
+    }).join('');
   }
 
   function handlePosition(pos, recenter) {
@@ -1461,6 +1503,7 @@
       download('whereabouts-places.json', JSON.stringify(state.places, null, 2), 'application/json');
     });
 
+    $('route-summary-toggle').addEventListener('click', toggleRouteSteps);
     $('route-clear').addEventListener('click', clearNavigation);
 
     // Tile images fail silently; surface it once so a blank map isn't a mystery.

@@ -21,7 +21,10 @@
     maxSpeed: 0,
     climb: 0,
     places: [],
-    prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'turbo', headingUp: false },
+    prefs: {
+      units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'turbo',
+      headingUp: false, sheetExpanded: false, activeTab: 'now'
+    },
     followMe: true,
     immersive: false,
     advisedOnPrecision: false,
@@ -31,7 +34,9 @@
     heading: null,
     appliedHeading: null,
     compassEvent: null,
-    compassSeen: false
+    compassSeen: false,
+    locateBusy: false,
+    sheetExpanded: false
   };
 
   var map;
@@ -138,9 +143,19 @@
     }, 2600);
   }
 
+  // Errors (permission denied, insecure context) matter more than the
+  // merely informational warnings (offline tiles, a coarse fix) — without
+  // this, whichever happened to fire last would silently win, and since
+  // both auto-locate and tile loading now kick off immediately on load,
+  // that race is no longer rare enough to leave to chance.
+  var BANNER_PRIORITY = { error: 2, warn: 1, precision: 1 };
+
   function banner(message, kind) {
     var el = $('banner');
     if (!message) { el.hidden = true; return; }
+    var shown = (BANNER_PRIORITY[kind] || 0);
+    var current = el.hidden ? -1 : (BANNER_PRIORITY[el.dataset.kind] || 0);
+    if (shown < current) return;
     // Only the text node is replaced — the dismiss button lives alongside it.
     $('banner-text').textContent = message;
     el.className = 'banner' + (kind ? ' banner-' + kind : '');
@@ -247,9 +262,9 @@
   }
 
   function setLocateBusy(busy) {
-    var btn = $('locate');
-    btn.classList.toggle('is-busy', busy);
-    $('locate-label').textContent = busy ? 'Locating…' : (state.position ? 'Update location' : 'Find my location');
+    state.locateBusy = busy;
+    $('recenter').classList.toggle('is-busy', busy);
+    renderSheetSummary();
   }
 
   /* One watch serves both jobs: keeping the readout live, and recording a
@@ -355,6 +370,7 @@
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.title = on ? 'Location updates automatically — tap to pause' : 'Updates paused — tap to resume';
     $('live-label').textContent = on ? 'Live' : 'Paused';
+    renderSheetSummary();
   }
 
   function startTracking() {
@@ -498,7 +514,6 @@
       : '—';
     $('fix-age').textContent = 'Fix from ' + relativeTime(pos.timestamp) +
       (state.tracking ? ' · recording trip' : '');
-    $('locate-label').textContent = 'Update location';
 
     var quality = precisionOf(c.accuracy);
     $('precision').dataset.quality = quality.key;
@@ -512,6 +527,23 @@
     $('hud-coords').textContent = c.latitude.toFixed(5) + ', ' + c.longitude.toFixed(5);
     $('hud-meta').textContent = (c.accuracy != null ? '±' + formatDistance(c.accuracy) : '') +
       (c.speed != null && !isNaN(c.speed) ? ' · ' + formatSpeed(c.speed) : '');
+
+    renderSheetSummary();
+  }
+
+  // The collapsed sheet's one line of text — coordinates until something
+  // more useful (like a street name) is available, and never blank.
+  function renderSheetSummary() {
+    var dot = $('sheet-status-dot');
+    var text = $('sheet-summary-text');
+    if (!dot || !text) return;
+    dot.classList.toggle('is-live', !!(state.prefs.live && state.watchId != null));
+    if (!state.position) {
+      text.textContent = state.locateBusy ? 'Finding you…' : 'Location unavailable';
+      return;
+    }
+    var c = state.position.coords;
+    text.textContent = state.streetName || (c.latitude.toFixed(4) + ', ' + c.longitude.toFixed(4));
   }
 
   function renderTrip() {
@@ -797,26 +829,48 @@
     $('theme-color').setAttribute('content', prefersDark() ? '#0d1117' : '#f5f6f8');
   }
 
+  function activateTab(name) {
+    document.querySelectorAll('.tab').forEach(function (t) {
+      var active = t.dataset.tab === name;
+      t.classList.toggle('is-active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('.tab-panel').forEach(function (p) {
+      p.classList.toggle('is-active', p.dataset.panel === name);
+    });
+  }
+
+  function setSheetExpanded(on) {
+    state.sheetExpanded = on;
+    state.prefs.sheetExpanded = on;
+    savePrefs();
+    $('sheet').dataset.state = on ? 'expanded' : 'collapsed';
+    $('sheet-handle').setAttribute('aria-expanded', on ? 'true' : 'false');
+    $('sheet-handle').setAttribute('aria-label', on ? 'Collapse details' : 'Expand details');
+  }
+
   function wireUI() {
-    $('locate').addEventListener('click', locateOnce);
+    // Recenter now doubles as "find me": one control, always a fresh fix,
+    // rather than a separate always-visible pill for the same job.
     $('zoom-in').addEventListener('click', function () { map.zoomBy(1); });
     $('zoom-out').addEventListener('click', function () { map.zoomBy(-1); });
-    $('recenter').addEventListener('click', function () {
-      if (!state.position) { locateOnce(); return; }
-      state.followMe = true;
-      map.setView(state.position.coords.latitude, state.position.coords.longitude, 16);
+    $('recenter').addEventListener('click', locateOnce);
+
+    $('sheet-handle').addEventListener('click', function () {
+      setSheetExpanded(!state.sheetExpanded);
+    });
+
+    // Tapping the map while the sheet is open gets it out of the way, same
+    // as Apple/Google Maps — but a drag is a pan, not a dismissal.
+    map.on('click', function () {
+      if (state.sheetExpanded) setSheetExpanded(false);
     });
 
     document.querySelectorAll('.tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
-        document.querySelectorAll('.tab').forEach(function (t) {
-          var active = t === tab;
-          t.classList.toggle('is-active', active);
-          t.setAttribute('aria-selected', active ? 'true' : 'false');
-        });
-        document.querySelectorAll('.tab-panel').forEach(function (p) {
-          p.classList.toggle('is-active', p.dataset.panel === tab.dataset.tab);
-        });
+        activateTab(tab.dataset.tab);
+        state.prefs.activeTab = tab.dataset.tab;
+        savePrefs();
       });
     });
 
@@ -1018,8 +1072,13 @@
     $('theme-toggle').textContent = state.prefs.theme;
     $('rate-toggle').textContent = rateLabel();
 
+    // Remembers where you left the sheet and which tab was open.
+    activateTab(state.prefs.activeTab || 'now');
+    setSheetExpanded(!!state.prefs.sheetExpanded);
+
     wireUI();
     renderLive();
+    renderSheetSummary();
     renderCompass();
     // Heading-up needs a gesture on iOS, so a saved preference re-arms the
     // control rather than silently starting the compass.
@@ -1038,15 +1097,18 @@
       if (state.tracking) renderTrip();
     }, 1000);
 
-    // A granted permission means we can locate, and go live, without a prompt.
+    // Geolocation prompts don't need a prior click the way more sensitive
+    // APIs do, so ask right away rather than waiting for a tap — locateOnce()
+    // already handles "unsupported" and "insecure context" via its own banner.
+    locateOnce();
+
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions.query({ name: 'geolocation' }).then(function (status) {
-        if (status.state === 'granted') locateOnce();
         status.addEventListener('change', function () {
           if (status.state === 'granted') syncWatch();
           else stopWatch();
         });
-      }).catch(function () { /* Safari and friends: wait for the tap */ });
+      }).catch(function () { /* Safari and friends: no permission-change tracking */ });
     }
 
     // A hidden tab can't show a live readout, so stop drawing on the GPS for

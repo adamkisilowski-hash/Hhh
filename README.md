@@ -15,17 +15,26 @@ python3 -m http.server 8080
 ```
 
 Then open <http://localhost:8080>. The browser will ask for location permission
-the first time you tap **Find my location**.
+on its own as soon as the page loads — there's no button to find first.
 
 ## What it does
 
+The map fills the whole screen at every size. Everything else — coordinates,
+trip stats, saved places — lives in a translucent glass sheet anchored to the
+bottom, collapsed by default to a slim bar showing where you are. Tap it (or
+the grip once it's open) to expand or collapse; tapping the map itself while
+it's open collapses it back out of the way, the same as Apple/Google Maps.
+Which tab was open and whether the sheet was left expanded both survive a
+reload.
+
 **Now** — your current latitude and longitude, plus accuracy, altitude, speed and
-heading when the device reports them. Once you've granted permission the readout
-updates by itself as you move, and the map follows — the **Live** pill shows
-that it's running and pauses it when you want the battery back. Panning the map
-by hand stops it recentring on you, without stopping the updates. Toggle between
-decimal degrees and degrees/minutes/seconds, copy the coordinates, share them as
-an OpenStreetMap link, or jump the map to coordinates you paste in.
+heading when the device reports them. The readout updates by itself as you
+move, and the map follows — the **Live** pill shows that it's running and
+pauses it when you want the battery back. Panning the map by hand stops it
+recentring on you, without stopping the updates; the ◎ control forces a fresh
+fix and recenters on demand. Toggle between decimal degrees and
+degrees/minutes/seconds, copy the coordinates, share them as an OpenStreetMap
+link, or jump the map to coordinates you paste in.
 
 A precision line under the coordinates grades the current fix — Precise (±20 m
 or better), Good, Approximate, or Coarse — so you can tell a satellite fix from
@@ -80,9 +89,10 @@ places persist in `localStorage`.
 Four source files plus a small set of icon assets, no dependencies, no toolchain:
 
 - `index.html` — structure
-- `styles.css` — light/dark theming via CSS custom properties; the side panel
-  becomes a bottom sheet under 760px. Map chrome is translucent and blurred over
-  the map rather than sitting on opaque plates.
+- `styles.css` — light/dark theming via CSS custom properties. The map is
+  always full-bleed; a single Liquid-Glass bottom sheet overlays it at every
+  screen size, rather than a side panel on desktop and a different bottom
+  sheet on mobile.
 - `map.js` — `MiniMap`, a small slippy map: Web Mercator projection, pointer
   panning, wheel and pinch zoom, marker layer, swappable basemaps, map rotation
   (one transform over a padded layer, since a rotated square needs to be bigger

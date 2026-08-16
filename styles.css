@@ -14,8 +14,6 @@
   --accent-soft: rgba(37, 99, 235, 0.12);
   --accent-text: #ffffff;
   --danger: #c9382f;
-  --good: #17794c;
-  --warn-text-strong: #9a6100;
   --warn-bg: #fff4d6;
   --warn-text: #6b4c00;
   --error-bg: #fde3e1;
@@ -42,8 +40,6 @@
     --accent-soft: rgba(77, 139, 255, 0.18);
     --accent-text: #06101f;
     --danger: #f0736a;
-    --good: #4fc285;
-    --warn-text-strong: #e3ab55;
     --warn-bg: #3d3111;
     --warn-text: #f2d488;
     --error-bg: #45201d;
@@ -63,8 +59,6 @@
   --accent-soft: rgba(77, 139, 255, 0.18);
   --accent-text: #06101f;
   --danger: #f0736a;
-  --good: #4fc285;
-  --warn-text-strong: #e3ab55;
   --warn-bg: #3d3111;
   --warn-text: #f2d488;
   --error-bg: #45201d;
@@ -293,47 +287,6 @@ body {
 .mc-btn:hover { background: var(--surface-2); }
 .mc-btn:active { transform: translateY(1px); }
 
-.mc-btn svg { display: block; margin: 0 auto; }
-
-.fs-collapse { display: none; }
-#fullscreen[aria-pressed="true"] .fs-expand { display: none; }
-#fullscreen[aria-pressed="true"] .fs-collapse { display: block; }
-
-/* --------------------------------------------------------- immersive */
-
-body.is-immersive .panel { display: none; }
-
-/* .hud sets display, which would otherwise beat the UA's [hidden] rule. */
-.hud[hidden] { display: none; }
-
-.hud {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 9px 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  max-width: calc(100% - 24px);
-}
-
-.hud-coords {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 14px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.hud-meta {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
 .locate-btn {
   position: absolute;
   left: 50%;
@@ -464,33 +417,6 @@ body.is-immersive .panel { display: none; }
   font-variant-numeric: tabular-nums;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
-
-.precision {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 10px;
-  padding-top: 9px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.precision-dot {
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--text-dim);
-}
-
-.precision[data-quality="precise"] { color: var(--good); }
-.precision[data-quality="precise"] .precision-dot { background: var(--good); }
-.precision[data-quality="good"] .precision-dot { background: var(--accent); }
-.precision[data-quality="approx"] { color: var(--warn-text-strong); }
-.precision[data-quality="approx"] .precision-dot { background: var(--warn-text-strong); }
-.precision[data-quality="coarse"] { color: var(--danger); }
-.precision[data-quality="coarse"] .precision-dot { background: var(--danger); }
 
 .stats {
   display: grid;

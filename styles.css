@@ -481,15 +481,20 @@ body {
   right: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 12px;
   z-index: 5;
 }
 
 .mc-btn {
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--glass-border);
-  border-radius: 14px;
+  border-radius: 50%;
   background: var(--glass);
   -webkit-backdrop-filter: blur(12px) saturate(1.4);
   backdrop-filter: blur(12px) saturate(1.4);
@@ -504,11 +509,36 @@ body {
 .mc-btn:hover { background: var(--glass-hover); }
 .mc-btn:active { transform: translateY(1px); }
 
-.mc-btn svg { display: block; margin: 0 auto; }
+.mc-btn svg { display: block; }
+
+/* Related controls share one pill instead of each floating as its own
+   separate circle — the grouping Apple Maps uses for its own paired
+   controls, rather than a loose stack of every available button. */
+.map-pod {
+  display: flex;
+  flex-direction: column;
+  width: 46px;
+  border-radius: 23px;
+  overflow: hidden;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+}
+
+.map-pod .mc-btn {
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.map-pod .mc-btn + .mc-btn { border-top: 1px solid var(--glass-border); }
 
 #compass.is-active {
   color: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 #compass-needle { transition: transform 0.12s linear; }

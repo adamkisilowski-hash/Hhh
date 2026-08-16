@@ -21,8 +21,12 @@
     maxSpeed: 0,
     climb: 0,
     places: [],
-    prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true },
-    followMe: true
+    prefs: { units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'fast' },
+    followMe: true,
+    immersive: false,
+    advisedOnPrecision: false,
+    pollTimer: null,
+    pollStartedAt: 0
   };
 
   var map;
@@ -132,7 +136,8 @@
   function banner(message, kind) {
     var el = $('banner');
     if (!message) { el.hidden = true; return; }
-    el.textContent = message;
+    // Only the text node is replaced — the dismiss button lives alongside it.
+    $('banner-text').textContent = message;
     el.className = 'banner' + (kind ? ' banner-' + kind : '');
     el.dataset.kind = kind || '';
     el.hidden = false;
@@ -252,27 +257,83 @@
       clearBanner('error');
       handlePosition(pos, false);
     }, function (err) {
-      banner(geoErrorMessage(err), 'error');
       if (err.code === err.PERMISSION_DENIED) {
+        banner(geoErrorMessage(err), 'error');
         state.prefs.live = false;
         savePrefs();
         stopTracking();
         stopWatch();
         renderLive();
+        return;
       }
-    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 });
+      /* A watch that times out or briefly loses the satellites is routine, and
+       * shouting about it while a current fix is on screen is just noise — the
+       * watch and the poll both keep trying. Only speak up once the position
+       * shown has actually gone stale. */
+      var stale = !state.position || (Date.now() - state.position.timestamp) > 60000;
+      if (stale) banner(geoErrorMessage(err), 'error');
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
     return true;
   }
 
   function stopWatch() {
     if (state.watchId != null) navigator.geolocation.clearWatch(state.watchId);
     state.watchId = null;
+    clearInterval(state.pollTimer);
+    state.pollTimer = null;
+  }
+
+  /* watchPosition only fires when the device decides you've moved far enough,
+   * which on a stationary phone can mean nothing for a minute. Polling for a
+   * fresh fix alongside it keeps the readout genuinely current — at a rate the
+   * user picks, because this is the expensive part of the battery bill. */
+  var RATES = { fast: 2000, normal: 5000, saver: 15000 };
+
+  // Long enough that a slow fix isn't abandoned, short enough that a stuck one
+  // doesn't hold up the next attempt for long.
+  function pollTimeout() {
+    return Math.max(5000, (RATES[state.prefs.rate] || RATES.fast) * 2);
+  }
+
+  function pollNow() {
+    if (!state.prefs.live && !state.tracking) return;
+    if (document.hidden && !state.tracking) return;
+
+    /* Keep one request outstanding at a time, but expire the guard with the
+     * request's own timeout: some providers answer neither callback, and a
+     * plain boolean would then wedge polling for the rest of the session. */
+    var now = Date.now();
+    if (state.pollStartedAt && now - state.pollStartedAt < pollTimeout()) return;
+    state.pollStartedAt = now;
+
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      state.pollStartedAt = 0;
+      clearBanner('error');
+      handlePosition(pos, false);
+    }, function () {
+      // A missed poll isn't worth a banner — the watch reports real errors,
+      // and the next poll is seconds away.
+      state.pollStartedAt = 0;
+    }, { enableHighAccuracy: true, timeout: pollTimeout(), maximumAge: 0 });
+  }
+
+  function rateLabel() {
+    return 'every ' + (RATES[state.prefs.rate] || RATES.fast) / 1000 + 's';
+  }
+
+  function syncPoll() {
+    clearInterval(state.pollTimer);
+    state.pollTimer = null;
+    if (state.watchId == null) return;
+    if (!state.prefs.live && !state.tracking) return;
+    state.pollTimer = setInterval(pollNow, RATES[state.prefs.rate] || RATES.fast);
   }
 
   // Hold the watch open while either job still wants it, and not otherwise.
   function syncWatch() {
     if (state.prefs.live || state.tracking) startWatch();
     else stopWatch();
+    syncPoll();
     renderLive();
   }
 
@@ -309,7 +370,49 @@
     syncWatch();
   }
 
+  /* A GPS that has just dropped to Wi-Fi or cell positioning reports a fix
+   * that is both fresh and far worse. Taking it would throw the marker
+   * hundreds of metres and poison the track, so hold the better fix — but
+   * only briefly, or a stale reading would outlive its usefulness once
+   * you've actually moved. */
+  function isWorseFix(pos) {
+    var current = state.position;
+    if (!current) return false;
+    var was = current.coords.accuracy;
+    var now = pos.coords.accuracy;
+    if (was == null || now == null) return false;
+    var age = pos.timestamp - current.timestamp;
+    if (!(now > was * 3 && now > 50 && age < 15000)) return false;
+    // Only hold it if taking it would actually move the marker. A vaguer
+    // reading of the same spot still deserves to refresh the accuracy
+    // readout, otherwise the precision shown goes stale and misleads.
+    var moved = distance(
+      { lat: current.coords.latitude, lng: current.coords.longitude },
+      { lat: pos.coords.latitude, lng: pos.coords.longitude }
+    );
+    return moved > was;
+  }
+
+  function precisionOf(accuracy) {
+    if (accuracy == null) return { key: 'unknown', label: 'Accuracy unknown' };
+    if (accuracy <= 20) return { key: 'precise', label: 'Precise' };
+    if (accuracy <= 75) return { key: 'good', label: 'Good' };
+    if (accuracy <= 500) return { key: 'approx', label: 'Approximate' };
+    return { key: 'coarse', label: 'Coarse — network fix' };
+  }
+
+  // Only worth saying once, and only when the fix is bad enough to act on.
+  function maybeAdviseOnPrecision(accuracy) {
+    if (state.advisedOnPrecision || accuracy == null || accuracy <= 500) return;
+    state.advisedOnPrecision = true;
+    var ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    banner('This fix is ±' + formatDistance(accuracy) + ', which means it came from the network rather than GPS. ' +
+      (ios ? 'Check Settings → Privacy → Location Services → your browser → Precise Location.'
+           : 'Check your device location settings and allow precise location for this site.'), 'precision');
+  }
+
   function handlePosition(pos, recenter) {
+    if (!recenter && isWorseFix(pos)) return;
     state.position = pos;
     var c = pos.coords;
     var point = {
@@ -391,6 +494,19 @@
     $('fix-age').textContent = 'Fix from ' + relativeTime(pos.timestamp) +
       (state.tracking ? ' · recording trip' : '');
     $('locate-label').textContent = 'Update location';
+
+    var quality = precisionOf(c.accuracy);
+    $('precision').dataset.quality = quality.key;
+    $('precision-text').textContent = c.accuracy != null
+      ? quality.label + ' · ±' + formatDistance(c.accuracy)
+      : quality.label;
+    if (c.accuracy != null && c.accuracy <= 500) clearBanner('precision');
+    maybeAdviseOnPrecision(c.accuracy);
+
+    $('hud').hidden = !state.immersive;
+    $('hud-coords').textContent = c.latitude.toFixed(5) + ', ' + c.longitude.toFixed(5);
+    $('hud-meta').textContent = (c.accuracy != null ? '±' + formatDistance(c.accuracy) : '') +
+      (c.speed != null && !isNaN(c.speed) ? ' · ' + formatSpeed(c.speed) : '');
   }
 
   function renderTrip() {
@@ -458,6 +574,47 @@
     });
   }
 
+  /* ---------------------------------------------------------- fullscreen */
+
+  /* Two separate things, deliberately driven by one button: the Fullscreen
+   * API (which iOS Safari doesn't offer at all) and an immersive layout that
+   * hides the panel. The layout half always works, so the button still does
+   * something useful where the API is missing. */
+
+  function setImmersive(on) {
+    state.immersive = on;
+    document.body.classList.toggle('is-immersive', on);
+    $('hud').hidden = !on || !state.position;
+    var btn = $('fullscreen');
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.title = on ? 'Exit full screen' : 'Full screen map';
+    // The stage resized, so the map needs to refill it.
+    if (map) map.render();
+  }
+
+  function toggleFullscreen() {
+    var el = document.documentElement;
+    var request = el.requestFullscreen || el.webkitRequestFullscreen;
+    var exit = document.exitFullscreen || document.webkitExitFullscreen;
+    var active = document.fullscreenElement || document.webkitFullscreenElement;
+
+    if (!state.immersive) {
+      setImmersive(true);
+      if (request) {
+        // Rejection is normal (denied, or unsupported on iOS) — the
+        // immersive layout is already in place either way.
+        var p = request.call(el);
+        if (p && p.catch) p.catch(function () {});
+      }
+    } else {
+      setImmersive(false);
+      if (active && exit) {
+        var q = exit.call(document);
+        if (q && q.catch) q.catch(function () {});
+      }
+    }
+  }
+
   /* ---------------------------------------------------------------- hash */
 
   function syncHash() {
@@ -496,10 +653,27 @@
 
   /* ----------------------------------------------------------------- init */
 
+  /* CARTO's Positron and Dark Matter, at @2x so the labels stay sharp on
+   * dense screens. A native dark basemap beats inverting a light one: an
+   * inverted map gets the ground right but turns every label into a
+   * photographic negative. */
+  var BASEMAP = {
+    light: 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+    dark: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
+  };
+
+  function prefersDark() {
+    var theme = state.prefs.theme;
+    if (theme === 'dark') return true;
+    if (theme === 'light') return false;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
   function applyTheme() {
     var theme = state.prefs.theme;
     document.documentElement.dataset.theme = theme === 'auto' ? '' : theme;
     if (theme === 'auto') delete document.documentElement.dataset.theme;
+    if (map) map.setTileUrl(prefersDark() ? BASEMAP.dark : BASEMAP.light);
   }
 
   function wireUI() {
@@ -539,6 +713,15 @@
       renderNow();
       renderTrip();
       renderPlaces();
+    });
+
+    $('rate-toggle').addEventListener('click', function () {
+      var order = ['fast', 'normal', 'saver'];
+      state.prefs.rate = order[(order.indexOf(state.prefs.rate) + 1) % order.length];
+      this.textContent = rateLabel();
+      savePrefs();
+      syncPoll();
+      if (state.prefs.live || state.tracking) pollNow();
     });
 
     $('theme-toggle').addEventListener('click', function () {
@@ -605,6 +788,21 @@
       map.setView(parsed.lat, parsed.lng, 15);
     });
 
+    $('banner-close').addEventListener('click', function () {
+      $('banner').hidden = true;
+    });
+
+    $('fullscreen').addEventListener('click', toggleFullscreen);
+
+    // Esc and the browser's own controls leave fullscreen without telling the
+    // button, so follow the document rather than assuming our click did it.
+    ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (evt) {
+      document.addEventListener(evt, function () {
+        var active = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!active && state.immersive) setImmersive(false);
+      });
+    });
+
     $('live-toggle').addEventListener('click', function () {
       if (state.tracking && state.prefs.live) {
         toast('Stop the trip recording first.');
@@ -659,6 +857,8 @@
     document.addEventListener('keydown', function (e) {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'l') locateOnce();
+      if (e.key === 'f') toggleFullscreen();
+      if (e.key === 'Escape' && state.immersive) setImmersive(false);
       if (e.key === '+' || e.key === '=') map.zoomBy(1);
       if (e.key === '-') map.zoomBy(-1);
     });
@@ -669,11 +869,21 @@
     applyTheme();
 
     var start = parseHash() || { lat: 20, lng: 0, zoom: 3 };
+    start.tileUrl = prefersDark() ? BASEMAP.dark : BASEMAP.light;
     map = new MiniMap($('map'), start);
+
+    // Follow the OS theme while the app is set to auto.
+    if (window.matchMedia) {
+      var dark = window.matchMedia('(prefers-color-scheme: dark)');
+      var onSchemeChange = function () { if (state.prefs.theme === 'auto') applyTheme(); };
+      if (dark.addEventListener) dark.addEventListener('change', onSchemeChange);
+      else if (dark.addListener) dark.addListener(onSchemeChange);
+    }
 
     $('coord-format').textContent = state.prefs.coordFormat;
     $('unit-toggle').textContent = state.prefs.units;
     $('theme-toggle').textContent = state.prefs.theme;
+    $('rate-toggle').textContent = rateLabel();
 
     wireUI();
     renderLive();

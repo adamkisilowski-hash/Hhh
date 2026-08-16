@@ -60,6 +60,13 @@
     this.overlay = document.createElementNS(SVG_NS, 'svg');
     this.overlay.setAttribute('class', 'mm-overlay');
 
+    // Two paths for one line: a casing underneath keeps the track legible
+    // wherever it crosses something the same colour as itself.
+    this.trackCasing = document.createElementNS(SVG_NS, 'path');
+    this.trackCasing.setAttribute('class', 'mm-track-casing');
+    this.trackCasing.setAttribute('fill', 'none');
+    this.overlay.appendChild(this.trackCasing);
+
     this.trackPath = document.createElementNS(SVG_NS, 'path');
     this.trackPath.setAttribute('class', 'mm-track');
     this.trackPath.setAttribute('fill', 'none');
@@ -329,9 +336,24 @@
         d += (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
       }
       this.trackPath.setAttribute('d', d);
+      this.trackCasing.setAttribute('d', d);
     } else {
       this.trackPath.setAttribute('d', '');
+      this.trackCasing.setAttribute('d', '');
     }
+  };
+
+  // Swapping basemaps (light <-> dark) drops every cached tile, since the old
+  // images are still correct for their coordinates but wrong for the style.
+  MiniMap.prototype.setTileUrl = function (url) {
+    if (url === this.tileUrl) return this;
+    this.tileUrl = url;
+    for (var key in this.tiles) {
+      this.tiles[key].remove();
+      delete this.tiles[key];
+    }
+    this.render();
+    return this;
   };
 
   MiniMap.prototype._tileUrl = function (z, x, y) {

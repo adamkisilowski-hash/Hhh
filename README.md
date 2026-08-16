@@ -117,6 +117,18 @@ request says so rather than silently doing nothing; unlike the automatic
 street lookup, this only ever runs from an explicit submit, so it needs no
 rate-limiting of its own.
 
+**Navigate** — tap the arrow next to a saved place (once navigation is set
+up — see below) to draw a route there from where you're standing: a dashed
+line on the map, framed to fit both ends, with distance and an ETA shown
+back in the Now tab. This is a route preview, not turn-by-turn guidance — one
+request, drawn once; it doesn't reroute as you move, and the live position
+dot keeps updating exactly as it always has, independently of whatever
+route is on screen. Walking is the assumed profile, matching the app's own
+pace stat and trip tracking; `ROUTE_PROFILE` in `app.js` is the one line to
+change for driving or cycling instead. A destination with no viable route,
+or a request that just fails, says so rather than leaving the button
+looking like it did nothing.
+
 **Heading up** — the compass control turns the map so it points the way your
 device is pointing, with the needle staying true to north and every marker
 counter-rotated to stay upright. It uses `webkitCompassHeading` on iOS (behind
@@ -153,7 +165,7 @@ rather than holding any of its own.
 
 ## How it's built
 
-Five source files plus a small set of icon assets, no dependencies, no toolchain:
+Six source files plus a small set of icon assets, no dependencies, no toolchain:
 
 - `index.html` — structure
 - `styles.css` — light/dark theming via CSS custom properties. The map is
@@ -168,8 +180,10 @@ Five source files plus a small set of icon assets, no dependencies, no toolchain
 - `map.js` — `MiniMap`, a small slippy map: Web Mercator projection, pointer
   panning, wheel and pinch zoom, marker layer, swappable basemaps, map rotation
   (one transform over a padded layer, since a rotated square needs to be bigger
-  than its viewport), and an SVG overlay for the accuracy circle and the track
-  (drawn twice, casing under line, so it stays legible over any background)
+  than its viewport), an SVG overlay for the accuracy circle, the recorded
+  track and a route line (each its own layer, drawn twice — casing under
+  line — so any of them stays legible over any background), and `fitBounds`
+  to frame a whole route rather than just recentering on one end of it
 - `app.js` — geolocation, formatting, trip maths, storage, and UI wiring
 - `auth.js` — the sign-in gate; see **Accounts** below
 - `i18n.js` — the English/German/Polish dictionary and the `t(key, vars)`
@@ -177,6 +191,8 @@ Five source files plus a small set of icon assets, no dependencies, no toolchain
   `data-i18n*` attributes in `index.html` to translate static markup, and
   re-applies on the fly when the language changes
 - `firebase-config.js` — your own Firebase project's config, if you set one up
+- `ors-config.js` — your own OpenRouteService API key, if you set one up; see
+  **Navigation** below
 
 `MiniMap` exists so the app has no mapping-library dependency. It covers what
 this app needs — pan, integer zoom, markers, one circle, one polyline — and
@@ -255,13 +271,43 @@ database and security rules behind it — a meaningfully bigger project than
 authentication alone, and not something to take on silently as a side effect
 of adding a login screen.
 
+## Navigation
+
+Also optional and off by default — the **Navigate** arrow on a saved place
+stays hidden entirely until you set this up, rather than showing a control
+that would just fail every time it's pressed.
+
+1. [Sign up free](https://openrouteservice.org/dev/#/signup) for
+   OpenRouteService (2,000 requests/day on the free tier — plenty for
+   personal use).
+2. From the dashboard, **Request a token**, choosing the **Standard** token
+   type, and copy the key it gives you.
+3. Paste it into `ors-config.js` in place of `PLACEHOLDER`, and deploy.
+
+Unlike the Firebase config values above, an OpenRouteService key is tied to
+your personal request quota rather than safe-by-design to publish — treat
+it like any other API key. That's fine for local development or a private
+deployment; for a public site, inject it at deploy time instead of
+committing a real one to the repo.
+
 ## Privacy
 
-Positions never leave the device — trip tracking, saved places, and every
-preference stay in `localStorage`, exactly where they always have. There is
-no analytics and no telemetry. Two things do leave the device: map tile
-images (see below), and — only if you've set up sign-in — the email/password
-you register or sign in with, sent to Firebase to authenticate you. Nothing
-else about your location or activity is sent anywhere, signed in or not. If
-tiles can't load, the app says so and everything except the map imagery keeps
-working.
+Trip tracking, saved places, and every preference stay in `localStorage` on
+the device you're using — never sent anywhere, synced anywhere, or seen by
+anyone but you. There is no analytics and no telemetry.
+
+Your coordinates do leave the device for specific, visible purposes, each of
+them a plain HTTPS request to the free service that does the actual work,
+never to a server of this app's own (there isn't one): map tile images (see
+below), naming the street you're on and finding current weather (both to
+OpenStreetMap's Nominatim and Open-Meteo respectively, and only for where
+you currently are), searching an address you typed (also Nominatim, sent
+only when you submit that search), and — only once you've set up navigation
+— the route request when you tap **Navigate**, which sends both your current
+position and the destination to OpenRouteService. None of these run in the
+background beyond what's needed to keep the readout current; nothing about
+your history or habits accumulates anywhere but your own device. If you've
+set up sign-in, the one other thing that leaves the device is the
+email/password you register or sign in with, sent to Firebase to
+authenticate you. If tiles can't load, the app says so and everything except
+the map imagery keeps working.

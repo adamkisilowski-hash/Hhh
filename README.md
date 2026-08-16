@@ -43,7 +43,9 @@ Three files, no dependencies, no toolchain:
 
 - `index.html` — structure
 - `styles.css` — light/dark theming via CSS custom properties; the side panel
-  becomes a bottom sheet under 760px
+  becomes a bottom sheet under 760px. OSM publishes one light tile set, so dark
+  mode inverts the tile layer and rotates the hue back, keeping water blue and
+  parks green without a second tile source.
 - `map.js` — `MiniMap`, a small slippy map over OpenStreetMap tiles: Web
   Mercator projection, pointer panning, wheel and pinch zoom, marker layer, and
   an SVG overlay for the accuracy circle and track polyline

@@ -176,6 +176,20 @@ body {
 .mm-tile.is-loaded { opacity: 1; }
 .mm-tile.is-error { opacity: 0; }
 
+/* OSM serves one light tile set, so dark mode inverts it and spins the hue
+ * back so water and parks keep their colours. The filter is scoped to the
+ * tile layer — markers, track and accuracy circle sit in sibling layers and
+ * must not be inverted with it. */
+:root[data-theme="dark"] .mm-tiles {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.85);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mm-tiles {
+    filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.85);
+  }
+}
+
 .mm-track {
   stroke: var(--accent);
   stroke-width: 4;
@@ -200,6 +214,9 @@ body {
 }
 
 .mm-marker-me {
+  /* Saved pins are added after the location dot, so without this a place
+     saved where you're standing would paint over you. */
+  z-index: 2;
   width: 18px;
   height: 18px;
   margin: -9px 0 0 -9px;
@@ -231,6 +248,7 @@ body {
 }
 
 .mm-marker-place {
+  z-index: 1;
   width: 12px;
   height: 12px;
   margin: -6px 0 0 -6px;

@@ -210,6 +210,14 @@
       <div class="actions">
         <button id="places-export" class="btn" data-i18n="places.exportJson">Export JSON</button>
       </div>
+
+      <details class="jump">
+        <summary data-i18n="places.addByAddress">Add place by address</summary>
+        <form id="address-form" class="jump-form">
+          <input id="address-input" type="text" data-i18n-aria="places.addressAria" placeholder="10 Downing Street, London" autocomplete="off">
+          <button id="address-submit" class="btn" type="submit" data-i18n="places.addressAdd">Add</button>
+        </form>
+      </details>
     </section>
 
     <footer class="panel-foot">

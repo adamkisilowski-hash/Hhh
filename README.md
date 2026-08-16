@@ -106,6 +106,17 @@ exportable as JSON. With no current fix to point from, the list arrow is
 left off rather than drawn pointing nowhere, and the row falls back to the
 date the place was saved.
 
+A place doesn't have to be where you're standing — **Add place by address**
+(in the Places tab) turns a typed address into coordinates via the same
+Nominatim service the street name uses, the other direction: forward
+geocoding instead of reverse. Submitting searches for the best match, then
+asks for a name the same way saving your own location does — pre-filled
+with what you typed, so accepting the default is a single tap — and drops a
+pin exactly where the search landed. A search with no matches or a failed
+request says so rather than silently doing nothing; unlike the automatic
+street lookup, this only ever runs from an explicit submit, so it needs no
+rate-limiting of its own.
+
 **Heading up** — the compass control turns the map so it points the way your
 device is pointing, with the needle staying true to north and every marker
 counter-rotated to stay upright. It uses `webkitCompassHeading` on iOS (behind

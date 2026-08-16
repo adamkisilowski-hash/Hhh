@@ -26,6 +26,7 @@
 
 <div id="auth-gate" class="auth-gate" hidden>
   <div class="auth-card">
+    <button id="auth-lang-toggle" class="ghost-btn lang-toggle auth-lang-toggle" type="button">EN</button>
     <div class="auth-brand">
       <span class="auth-logo" aria-hidden="true"></span>
       <h1>Whereabouts</h1>
@@ -36,19 +37,19 @@
       <p id="auth-status" class="auth-status" role="status" hidden></p>
 
       <label class="auth-field">
-        <span>Email</span>
+        <span data-i18n="auth.email">Email</span>
         <input id="auth-email" type="email" autocomplete="email" required>
       </label>
       <label class="auth-field">
-        <span>Password</span>
+        <span data-i18n="auth.password">Password</span>
         <input id="auth-password" type="password" autocomplete="current-password" required minlength="6">
       </label>
 
-      <button id="auth-submit" class="btn btn-primary btn-wide" type="submit">Sign in</button>
+      <button id="auth-submit" class="btn btn-primary btn-wide" type="submit" data-i18n="auth.signIn">Sign in</button>
 
       <div class="auth-links">
-        <button id="auth-toggle-mode" class="link-btn" type="button">Need an account? Register</button>
-        <button id="auth-forgot" class="link-btn" type="button">Forgot password?</button>
+        <button id="auth-toggle-mode" class="link-btn" type="button" data-i18n="auth.needAccount">Need an account? Register</button>
+        <button id="auth-forgot" class="link-btn" type="button" data-i18n="auth.forgotPassword">Forgot password?</button>
       </div>
     </form>
   </div>
@@ -60,17 +61,17 @@
 
     <div class="map-controls">
       <div class="map-pod map-pod-subtle" role="group" aria-label="Zoom controls">
-        <button id="zoom-in" class="mc-btn mc-btn-subtle" title="Zoom in" aria-label="Zoom in">+</button>
-        <button id="zoom-out" class="mc-btn mc-btn-subtle" title="Zoom out" aria-label="Zoom out">−</button>
+        <button id="zoom-in" class="mc-btn mc-btn-subtle" data-i18n-title="controls.zoomIn">+</button>
+        <button id="zoom-out" class="mc-btn mc-btn-subtle" data-i18n-title="controls.zoomOut">−</button>
       </div>
       <div class="map-pod" role="group" aria-label="Location controls">
-        <button id="recenter" class="mc-btn" title="Find and center on me" aria-label="Find and center on me">
+        <button id="recenter" class="mc-btn" data-i18n-title="controls.recenter">
           <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="7"/>
             <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>
           </svg>
         </button>
-        <button id="compass" class="mc-btn" title="North up — tap to follow your heading" aria-label="Follow device heading" aria-pressed="false">
+        <button id="compass" class="mc-btn" data-i18n-title="controls.compassOff" data-i18n-aria="controls.compassAria" aria-pressed="false">
           <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
             <g id="compass-needle" style="transform-origin:center">
               <path d="M12 3.5 L15.4 13 L12 11 L8.6 13 Z" fill="currentColor"/>
@@ -79,7 +80,7 @@
           </svg>
         </button>
       </div>
-      <button id="fullscreen" class="mc-btn" title="Full screen map" aria-label="Full screen map" aria-pressed="false">
+      <button id="fullscreen" class="mc-btn" data-i18n-title="controls.fullscreenEnter" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
           <path class="fs-expand" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
           <path class="fs-collapse" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>
@@ -111,50 +112,51 @@
     <header class="panel-head">
       <h1>Whereabouts</h1>
       <div class="panel-head-actions">
-        <button id="theme-toggle" class="ghost-btn" title="Switch theme" aria-label="Switch theme">auto</button>
-        <button id="account-avatar" class="avatar-btn" hidden aria-haspopup="true" aria-expanded="false" aria-controls="account-menu" title="Account">
+        <button id="lang-toggle" class="ghost-btn lang-toggle" type="button">EN</button>
+        <button id="theme-toggle" class="ghost-btn" data-i18n-title="toggles.themeTitle">auto</button>
+        <button id="account-avatar" class="avatar-btn" hidden aria-haspopup="true" aria-expanded="false" aria-controls="account-menu" data-i18n-title="account.account">
           <span id="account-initial"></span>
         </button>
       </div>
 
       <div id="account-menu" class="account-menu" role="menu" hidden>
         <p id="account-menu-email" class="account-menu-email"></p>
-        <button id="account-change-password" class="account-menu-item" type="button" role="menuitem">Change password</button>
-        <button id="account-signout" class="account-menu-item account-menu-item-danger" type="button" role="menuitem">Sign out</button>
+        <button id="account-change-password" class="account-menu-item" type="button" role="menuitem" data-i18n="account.changePassword">Change password</button>
+        <button id="account-signout" class="account-menu-item account-menu-item-danger" type="button" role="menuitem" data-i18n="account.signOut">Sign out</button>
       </div>
     </header>
 
     <nav class="tabs" role="tablist">
-      <button class="tab is-active" role="tab" aria-selected="true" data-tab="now">Now</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="trip">Trip</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="places">Places</button>
+      <button class="tab is-active" role="tab" aria-selected="true" data-tab="now" data-i18n="nav.now">Now</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="trip" data-i18n="nav.trip">Trip</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="places" data-i18n="nav.places">Places</button>
     </nav>
 
     <section class="tab-panel is-active" data-panel="now" role="tabpanel">
       <div class="coords">
-        <button id="coord-format" class="coord-format" title="Switch coordinate format">decimal</button>
+        <button id="coord-format" class="coord-format" data-i18n-title="now.coordFormatTitle">decimal</button>
         <div id="street-row" class="street-row" hidden>
           <span id="street-name" class="street-name"></span>
         </div>
         <div class="coord-row">
-          <span class="coord-label">Latitude</span>
+          <span class="coord-label" data-i18n="now.latitude">Latitude</span>
           <span id="lat" class="coord-value">—</span>
         </div>
         <div class="coord-row">
-          <span class="coord-label">Longitude</span>
+          <span class="coord-label" data-i18n="now.longitude">Longitude</span>
           <span id="lng" class="coord-value">—</span>
         </div>
         <div id="precision" class="precision">
           <span class="precision-dot"></span>
-          <span id="precision-text">Waiting for a fix</span>
+          <span id="precision-text" data-i18n="precision.waiting">Waiting for a fix</span>
         </div>
       </div>
 
       <div class="stats">
-        <div class="stat"><span class="stat-label">Accuracy</span><span id="accuracy" class="stat-value">—</span></div>
-        <div class="stat"><span class="stat-label">Altitude</span><span id="altitude" class="stat-value">—</span></div>
-        <div class="stat"><span class="stat-label">Speed</span><span id="speed" class="stat-value">—</span></div>
-        <div class="stat"><span class="stat-label">Heading</span><span id="heading" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="now.accuracy">Accuracy</span><span id="accuracy" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="now.altitude">Altitude</span><span id="altitude" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="now.speed">Speed</span><span id="speed" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="now.heading">Heading</span><span id="heading" class="stat-value">—</span></div>
       </div>
 
       <div id="weather-row" class="weather-row" hidden>
@@ -163,42 +165,42 @@
       </div>
 
       <div class="live-row">
-        <p id="fix-age" class="muted">No fix yet.</p>
-        <button id="live-toggle" class="live-btn" aria-pressed="true" title="Location updates automatically — tap to pause">
-          <span class="live-dot"></span><span id="live-label">Live</span>
+        <p id="fix-age" class="muted" data-i18n="toast.noFix">No fix yet.</p>
+        <button id="live-toggle" class="live-btn" aria-pressed="true" data-i18n-title="now.liveTitleOn">
+          <span class="live-dot"></span><span id="live-label" data-i18n="now.live">Live</span>
         </button>
       </div>
 
       <div class="actions">
-        <button id="copy" class="btn">Copy coordinates</button>
-        <button id="share" class="btn">Share</button>
-        <button id="save-place" class="btn btn-primary">Save this place</button>
+        <button id="copy" class="btn" data-i18n="now.copy">Copy coordinates</button>
+        <button id="share" class="btn" data-i18n="now.share">Share</button>
+        <button id="save-place" class="btn btn-primary" data-i18n="now.savePlace">Save this place</button>
       </div>
 
       <details class="jump">
-        <summary>Jump to coordinates</summary>
+        <summary data-i18n="now.jumpSummary">Jump to coordinates</summary>
         <form id="jump-form" class="jump-form">
-          <input id="jump-input" type="text" inputmode="decimal" placeholder="51.5074, -0.1278" aria-label="Latitude and longitude">
-          <button class="btn" type="submit">Go</button>
+          <input id="jump-input" type="text" inputmode="decimal" placeholder="51.5074, -0.1278" data-i18n-aria="now.jumpAria">
+          <button class="btn" type="submit" data-i18n="now.go">Go</button>
         </form>
       </details>
     </section>
 
     <section class="tab-panel" data-panel="trip" role="tabpanel">
-      <button id="track-toggle" class="btn btn-primary btn-wide">Start tracking</button>
+      <button id="track-toggle" class="btn btn-primary btn-wide" data-i18n="trip.startTracking">Start tracking</button>
       <div class="stats stats-2">
-        <div class="stat"><span class="stat-label">Distance</span><span id="trip-distance" class="stat-value">0 m</span></div>
-        <div class="stat"><span class="stat-label">Duration</span><span id="trip-duration" class="stat-value">0:00</span></div>
-        <div class="stat"><span class="stat-label">Avg speed</span><span id="trip-avg" class="stat-value">—</span></div>
-        <div class="stat"><span class="stat-label">Pace</span><span id="trip-pace" class="stat-value">—</span></div>
-        <div class="stat"><span class="stat-label">Top speed</span><span id="trip-max" class="stat-value">—</span></div>
-        <div class="stat"><span class="stat-label">Points</span><span id="trip-points" class="stat-value">0</span></div>
-        <div class="stat"><span class="stat-label">Climb</span><span id="trip-climb" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="trip.distance">Distance</span><span id="trip-distance" class="stat-value">0 m</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="trip.duration">Duration</span><span id="trip-duration" class="stat-value">0:00</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="trip.avgSpeed">Avg speed</span><span id="trip-avg" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="trip.pace">Pace</span><span id="trip-pace" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="trip.topSpeed">Top speed</span><span id="trip-max" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="trip.points">Points</span><span id="trip-points" class="stat-value">0</span></div>
+        <div class="stat"><span class="stat-label" data-i18n="trip.climb">Climb</span><span id="trip-climb" class="stat-value">—</span></div>
       </div>
-      <p class="muted">Tracking keeps the screen's location watch open and draws your path on the map. Nothing leaves your device.</p>
+      <p class="muted" data-i18n="trip.note">Tracking keeps the screen's location watch open and draws your path on the map. Nothing leaves your device.</p>
       <div class="actions">
-        <button id="trip-export" class="btn">Export GPX</button>
-        <button id="trip-clear" class="btn btn-danger">Clear trip</button>
+        <button id="trip-export" class="btn" data-i18n="trip.exportGpx">Export GPX</button>
+        <button id="trip-clear" class="btn btn-danger" data-i18n="trip.clearTrip">Clear trip</button>
       </div>
     </section>
 
@@ -206,14 +208,14 @@
       <ul id="places-list" class="places"></ul>
       <p id="places-empty" class="muted">No saved places yet. Find your location, then tap <strong>Save this place</strong>.</p>
       <div class="actions">
-        <button id="places-export" class="btn">Export JSON</button>
+        <button id="places-export" class="btn" data-i18n="places.exportJson">Export JSON</button>
       </div>
     </section>
 
     <footer class="panel-foot">
       <span class="foot-controls">
         <button id="unit-toggle" class="ghost-btn">metric</button>
-        <button id="rate-toggle" class="ghost-btn" title="How often to refresh your location">every 2s</button>
+        <button id="rate-toggle" class="ghost-btn" data-i18n-title="footer.rateTitle">every 2s</button>
       </span>
       <span class="attrib">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a></span>
     </footer>
@@ -223,6 +225,7 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+<script src="i18n.js"></script>
 <script src="firebase-config.js"></script>
 <script src="map.js"></script>
 <script src="app.js"></script>

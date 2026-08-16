@@ -12,8 +12,13 @@
   'use strict';
 
   var $ = function (id) { return document.getElementById(id); };
+  var I18N = window.WhereaboutsI18n;
+  var t = I18N.t;
   var config = window.WHEREABOUTS_FIREBASE_CONFIG || {};
   var configured = !!(config.apiKey && config.apiKey !== 'PLACEHOLDER');
+
+  var authLangToggle = $('auth-lang-toggle');
+  if (authLangToggle) authLangToggle.addEventListener('click', function () { I18N.cycleLang(); });
 
   function startApp() {
     if (window.Whereabouts && !window.Whereabouts.started) {
@@ -52,20 +57,21 @@
     var auth = fbAuth.getAuth(app);
     var mode = 'signin';
 
-    var ERROR_MESSAGES = {
-      'auth/invalid-email': "That doesn't look like a valid email address.",
-      'auth/email-already-in-use': 'An account already exists for that email — try signing in instead.',
-      'auth/weak-password': 'Password needs to be at least 6 characters.',
-      'auth/user-not-found': 'No account found for that email.',
-      'auth/wrong-password': 'Wrong password.',
-      'auth/invalid-credential': 'Email or password is incorrect.',
-      'auth/missing-password': 'Enter a password.',
-      'auth/too-many-requests': 'Too many attempts — wait a bit and try again.',
-      'auth/network-request-failed': 'Network error — check your connection.'
+    var ERROR_KEYS = {
+      'auth/invalid-email': 'auth.err.invalidEmail',
+      'auth/email-already-in-use': 'auth.err.emailInUse',
+      'auth/weak-password': 'auth.err.weakPassword',
+      'auth/user-not-found': 'auth.err.userNotFound',
+      'auth/wrong-password': 'auth.err.wrongPassword',
+      'auth/invalid-credential': 'auth.err.invalidCredential',
+      'auth/missing-password': 'auth.err.missingPassword',
+      'auth/too-many-requests': 'auth.err.tooManyRequests',
+      'auth/network-request-failed': 'auth.err.networkFailed'
     };
 
     function authErrorMessage(err) {
-      return ERROR_MESSAGES[err && err.code] || (err && err.message) || 'Something went wrong. Try again.';
+      var key = ERROR_KEYS[err && err.code];
+      return key ? t(key) : ((err && err.message) || t('auth.genericError'));
     }
 
     function setError(msg) {
@@ -87,24 +93,26 @@
     }
 
     function applyMode() {
-      $('auth-submit').textContent = mode === 'signin' ? 'Sign in' : 'Create account';
-      $('auth-toggle-mode').textContent = mode === 'signin' ? 'Need an account? Register' : 'Have an account? Sign in';
+      $('auth-submit').textContent = mode === 'signin' ? t('auth.signIn') : t('auth.createAccount');
+      $('auth-toggle-mode').textContent = mode === 'signin' ? t('auth.needAccount') : t('auth.haveAccount');
       $('auth-password').autocomplete = mode === 'signin' ? 'current-password' : 'new-password';
-      setError(null);
-      setStatus(null);
     }
+
+    I18N.onChange(applyMode);
 
     $('auth-toggle-mode').addEventListener('click', function () {
       mode = mode === 'signin' ? 'register' : 'signin';
       applyMode();
+      setError(null);
+      setStatus(null);
     });
 
     $('auth-forgot').addEventListener('click', function () {
       var email = $('auth-email').value.trim();
-      if (!email) { setError('Enter your email above first.'); return; }
+      if (!email) { setError(t('auth.enterEmailFirst')); return; }
       setError(null);
       fbAuth.sendPasswordResetEmail(auth, email).then(function () {
-        setStatus('Password reset email sent — check your inbox.');
+        setStatus(t('auth.resetSent'));
       }).catch(function (err) { setError(authErrorMessage(err)); });
     });
 
@@ -153,7 +161,7 @@
       if (!user || !user.email) return;
       fbAuth.sendPasswordResetEmail(auth, user.email).then(function () {
         closeMenu();
-        toastLike('Password reset email sent — check your inbox.');
+        toastLike(t('auth.resetSent'));
       }).catch(function () { closeMenu(); });
     });
 

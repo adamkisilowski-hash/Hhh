@@ -1065,10 +1065,11 @@
   }
 
   function wireUI() {
-    // Recenter now doubles as "find me": one control, always a fresh fix,
-    // rather than a separate always-visible pill for the same job.
     $('zoom-in').addEventListener('click', function () { map.zoomBy(1); });
     $('zoom-out').addEventListener('click', function () { map.zoomBy(-1); });
+
+    // Recenter now doubles as "find me": one control, always a fresh fix,
+    // rather than a separate always-visible pill for the same job.
     $('recenter').addEventListener('click', locateOnce);
 
     $('sheet-handle').addEventListener('click', function () {

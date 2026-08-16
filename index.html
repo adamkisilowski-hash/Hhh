@@ -58,18 +58,27 @@
   <main class="stage">
     <div id="map" class="map" aria-label="Map of your location"></div>
 
-    <div class="map-controls" role="group" aria-label="Map controls">
-      <button id="zoom-in" class="mc-btn" title="Zoom in" aria-label="Zoom in">+</button>
-      <button id="zoom-out" class="mc-btn" title="Zoom out" aria-label="Zoom out">−</button>
-      <button id="recenter" class="mc-btn" title="Find and center on me" aria-label="Find and center on me">◎</button>
-      <button id="compass" class="mc-btn" title="North up — tap to follow your heading" aria-label="Follow device heading" aria-pressed="false">
-        <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
-          <g id="compass-needle" style="transform-origin:center">
-            <path d="M12 3.5 L15.4 13 L12 11 L8.6 13 Z" fill="currentColor"/>
-            <path d="M12 20.5 L8.6 11 L12 13 L15.4 11 Z" fill="currentColor" opacity="0.32"/>
-          </g>
-        </svg>
-      </button>
+    <div class="map-controls">
+      <div class="map-pod map-pod-subtle" role="group" aria-label="Zoom controls">
+        <button id="zoom-in" class="mc-btn mc-btn-subtle" title="Zoom in" aria-label="Zoom in">+</button>
+        <button id="zoom-out" class="mc-btn mc-btn-subtle" title="Zoom out" aria-label="Zoom out">−</button>
+      </div>
+      <div class="map-pod" role="group" aria-label="Location controls">
+        <button id="recenter" class="mc-btn" title="Find and center on me" aria-label="Find and center on me">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="7"/>
+            <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
+        <button id="compass" class="mc-btn" title="North up — tap to follow your heading" aria-label="Follow device heading" aria-pressed="false">
+          <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+            <g id="compass-needle" style="transform-origin:center">
+              <path d="M12 3.5 L15.4 13 L12 11 L8.6 13 Z" fill="currentColor"/>
+              <path d="M12 20.5 L8.6 11 L12 13 L15.4 11 Z" fill="currentColor" opacity="0.32"/>
+            </g>
+          </svg>
+        </button>
+      </div>
       <button id="fullscreen" class="mc-btn" title="Full screen map" aria-label="Full screen map" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
           <path class="fs-expand" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>

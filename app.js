@@ -39,7 +39,9 @@
     locateBusy: false,
     sheetExpanded: false,
     deadReckonTimer: null,
-    streetName: null
+    streetName: null,
+    streetLookupAt: 0,
+    streetLookupPoint: null
   };
 
   var map;
@@ -523,6 +525,49 @@
            : 'Check your device location settings and allow precise location for this site.'), 'precision');
   }
 
+  /* Nominatim is a free, shared public service, so this stays well inside
+   * its usage policy on purpose: at most one lookup every 12s, and only
+   * when we've actually moved far enough that the street has probably
+   * changed — a sudden large jump (jump-to-coordinates, a teleporting fix)
+   * bypasses the wait, since a 12s-stale street name right after that would
+   * just be wrong rather than merely a little behind. */
+  function maybeLookUpStreet(lat, lng) {
+    var last = state.streetLookupPoint;
+    var due = true;
+    if (last) {
+      var moved = distance(last, { lat: lat, lng: lng });
+      var elapsed = Date.now() - state.streetLookupAt;
+      due = moved > 300 || (moved > 30 && elapsed > 12000);
+    }
+    if (!due) return;
+    state.streetLookupAt = Date.now();
+    state.streetLookupPoint = { lat: lat, lng: lng };
+    reverseGeocode(lat, lng);
+  }
+
+  function reverseGeocode(lat, lng) {
+    var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' +
+      encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng) + '&zoom=17&addressdetails=1';
+    fetch(url, { headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        var a = data && data.address;
+        // Nominatim's address fields vary by what's actually mapped there —
+        // fall back through the closest things to "a street" it offers.
+        var name = a && (a.road || a.pedestrian || a.footway || a.cycleway || a.path);
+        state.streetName = name || null;
+        renderStreet();
+        renderSheetSummary();
+      })
+      .catch(function () { /* offline or rate-limited — coordinates remain the fallback */ });
+  }
+
+  function renderStreet() {
+    var row = $('street-row');
+    row.hidden = !state.streetName;
+    if (state.streetName) $('street-name').textContent = state.streetName;
+  }
+
   function handlePosition(pos, recenter) {
     if (!recenter && isWorseFix(pos)) return;
     state.position = pos;
@@ -537,6 +582,7 @@
     };
 
     if (state.tracking) appendTrackPoint(point);
+    maybeLookUpStreet(point.lat, point.lng);
 
     map.setMarker('me', point.lat, point.lng, 'mm-marker-me', 'You are here');
     map.setAccuracy(point.lat, point.lng, c.accuracy);

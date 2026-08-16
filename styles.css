@@ -558,6 +558,21 @@ body.is-immersive .sheet { display: none; }
   padding: 12px 14px;
 }
 
+.street-row[hidden] { display: none; }
+
+.street-row {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.street-name::before {
+  content: "on ";
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
 .coord-format {
   position: absolute;
   top: 8px;

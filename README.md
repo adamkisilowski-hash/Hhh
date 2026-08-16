@@ -36,6 +36,18 @@ fix and recenters on demand. Toggle between decimal degrees and
 degrees/minutes/seconds, copy the coordinates, share them as an OpenStreetMap
 link, or jump the map to coordinates you paste in.
 
+When it can, the app names the street you're on — shown above the coordinates
+and, once known, in place of raw numbers in the collapsed sheet's summary
+line. This comes from OSM's free Nominatim reverse-geocoding service, called
+sparingly on purpose: at most once every 12 seconds and only once you've
+actually moved far enough that the street plausibly changed, since it's a
+shared public resource and this stays well inside its usage policy rather
+than hammering it on every 1-second poll. A sudden large jump — jumping to
+pasted coordinates, say — looks up immediately instead of waiting, since a
+stale name right after that would just be wrong rather than merely behind. If
+the lookup fails or the spot has no named road, the coordinates are the
+fallback either way.
+
 Between real fixes, the dot doesn't just sit still and jump — while moving at
 walking pace or faster, it's nudged forward using the last fix's own reported
 speed and heading (dead reckoning), so it glides rather than stutters. This is

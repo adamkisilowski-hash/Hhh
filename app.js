@@ -41,7 +41,25 @@
     deadReckonTimer: null,
     streetName: null,
     streetLookupAt: 0,
-    streetLookupPoint: null
+    streetLookupPoint: null,
+    weather: null,
+    weatherAt: 0,
+    weatherPoint: null
+  };
+
+  // WMO weather codes, as used by Open-Meteo. Collapsed to the common cases —
+  // exact sub-variety (e.g. which of three fog codes) isn't worth showing.
+  var WEATHER_CODES = {
+    0: ['Clear sky', '☀️'], 1: ['Mainly clear', '🌤️'], 2: ['Partly cloudy', '⛅'], 3: ['Overcast', '☁️'],
+    45: ['Fog', '🌫️'], 48: ['Fog', '🌫️'],
+    51: ['Light drizzle', '🌦️'], 53: ['Drizzle', '🌦️'], 55: ['Dense drizzle', '🌦️'],
+    56: ['Freezing drizzle', '🌧️'], 57: ['Freezing drizzle', '🌧️'],
+    61: ['Light rain', '🌧️'], 63: ['Rain', '🌧️'], 65: ['Heavy rain', '🌧️'],
+    66: ['Freezing rain', '🌨️'], 67: ['Freezing rain', '🌨️'],
+    71: ['Light snow', '🌨️'], 73: ['Snow', '🌨️'], 75: ['Heavy snow', '❄️'], 77: ['Snow grains', '🌨️'],
+    80: ['Rain showers', '🌦️'], 81: ['Rain showers', '🌦️'], 82: ['Violent showers', '⛈️'],
+    85: ['Snow showers', '🌨️'], 86: ['Snow showers', '🌨️'],
+    95: ['Thunderstorm', '⛈️'], 96: ['Thunderstorm (hail)', '⛈️'], 99: ['Thunderstorm (hail)', '⛈️']
   };
 
   var map;
@@ -568,6 +586,50 @@
     if (state.streetName) $('street-name').textContent = state.streetName;
   }
 
+  /* Weather doesn't need Nominatim's care — Open-Meteo has no key and a
+   * generous free tier — but there's still no reason to ask again every
+   * time a fix arrives: conditions don't meaningfully change minute to
+   * minute, so refresh at most every 10 minutes, or immediately after
+   * travelling far enough (20 km) that local weather might actually differ. */
+  function maybeFetchWeather(lat, lng) {
+    var last = state.weatherPoint;
+    var due = true;
+    if (last) {
+      var moved = distance(last, { lat: lat, lng: lng });
+      var elapsed = Date.now() - state.weatherAt;
+      due = moved > 20000 || elapsed > 600000;
+    }
+    if (!due) return;
+    state.weatherAt = Date.now();
+    state.weatherPoint = { lat: lat, lng: lng };
+    fetchWeather(lat, lng);
+  }
+
+  function fetchWeather(lat, lng) {
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + encodeURIComponent(lat) +
+      '&longitude=' + encodeURIComponent(lng) + '&current=temperature_2m,weather_code&timezone=auto';
+    fetch(url)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        var cur = data && data.current;
+        if (!cur || cur.temperature_2m == null) return;
+        state.weather = { tempC: cur.temperature_2m, code: cur.weather_code };
+        renderWeather();
+      })
+      .catch(function () { /* offline — the row just stays hidden */ });
+  }
+
+  function renderWeather() {
+    var row = $('weather-row');
+    if (!state.weather) { row.hidden = true; return; }
+    var info = WEATHER_CODES[state.weather.code] || ['—', '🌡️'];
+    var tempC = state.weather.tempC;
+    var tempText = isMetric() ? Math.round(tempC) + '°C' : Math.round(tempC * 9 / 5 + 32) + '°F';
+    $('weather-icon').textContent = info[1];
+    $('weather-text').textContent = tempText + ' · ' + info[0];
+    row.hidden = false;
+  }
+
   function handlePosition(pos, recenter) {
     if (!recenter && isWorseFix(pos)) return;
     state.position = pos;
@@ -583,6 +645,7 @@
 
     if (state.tracking) appendTrackPoint(point);
     maybeLookUpStreet(point.lat, point.lng);
+    maybeFetchWeather(point.lat, point.lng);
 
     map.setMarker('me', point.lat, point.lng, 'mm-marker-me', 'You are here');
     map.setAccuracy(point.lat, point.lng, c.accuracy);
@@ -1026,6 +1089,7 @@
       renderNow();
       renderTrip();
       renderPlaces();
+      renderWeather();
     });
 
     $('rate-toggle').addEventListener('click', function () {

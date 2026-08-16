@@ -48,6 +48,12 @@ stale name right after that would just be wrong rather than merely behind. If
 the lookup fails or the spot has no named road, the coordinates are the
 fallback either way.
 
+Current conditions — temperature and a short description — come from
+[Open-Meteo](https://open-meteo.com), which needs no API key. Refreshed at
+most every 10 minutes, or immediately after travelling far enough (20 km)
+that the weather might actually be different; switching units just reformats
+the reading already in hand rather than asking again.
+
 Between real fixes, the dot doesn't just sit still and jump — while moving at
 walking pace or faster, it's nudged forward using the last fix's own reported
 speed and heading (dead reckoning), so it glides rather than stutters. This is

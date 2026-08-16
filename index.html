@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Whereabouts — location app</title>
+<meta name="description" content="See where you are, track where you go, and save the places that matter.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+  <main class="stage">
+    <div id="map" class="map" aria-label="Map of your location"></div>
+
+    <div class="map-controls" role="group" aria-label="Map controls">
+      <button id="zoom-in" class="mc-btn" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="zoom-out" class="mc-btn" title="Zoom out" aria-label="Zoom out">−</button>
+      <button id="recenter" class="mc-btn" title="Recenter on me" aria-label="Recenter on me">◎</button>
+    </div>
+
+    <div id="banner" class="banner" role="alert" hidden></div>
+
+    <button id="locate" class="locate-btn">
+      <span class="locate-dot"></span>
+      <span id="locate-label">Find my location</span>
+    </button>
+  </main>
+
+  <aside class="panel">
+    <header class="panel-head">
+      <h1>Whereabouts</h1>
+      <button id="theme-toggle" class="ghost-btn" title="Switch theme" aria-label="Switch theme">auto</button>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" role="tab" aria-selected="true" data-tab="now">Now</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="trip">Trip</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="places">Places</button>
+    </nav>
+
+    <section class="tab-panel is-active" data-panel="now" role="tabpanel">
+      <div class="coords">
+        <button id="coord-format" class="coord-format" title="Switch coordinate format">decimal</button>
+        <div class="coord-row">
+          <span class="coord-label">Latitude</span>
+          <span id="lat" class="coord-value">—</span>
+        </div>
+        <div class="coord-row">
+          <span class="coord-label">Longitude</span>
+          <span id="lng" class="coord-value">—</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span class="stat-label">Accuracy</span><span id="accuracy" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label">Altitude</span><span id="altitude" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label">Speed</span><span id="speed" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label">Heading</span><span id="heading" class="stat-value">—</span></div>
+      </div>
+
+      <p id="fix-age" class="muted">No fix yet.</p>
+
+      <div class="actions">
+        <button id="copy" class="btn">Copy coordinates</button>
+        <button id="share" class="btn">Share</button>
+        <button id="save-place" class="btn btn-primary">Save this place</button>
+      </div>
+
+      <details class="jump">
+        <summary>Jump to coordinates</summary>
+        <form id="jump-form" class="jump-form">
+          <input id="jump-input" type="text" inputmode="decimal" placeholder="51.5074, -0.1278" aria-label="Latitude and longitude">
+          <button class="btn" type="submit">Go</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="tab-panel" data-panel="trip" role="tabpanel">
+      <button id="track-toggle" class="btn btn-primary btn-wide">Start tracking</button>
+      <div class="stats stats-2">
+        <div class="stat"><span class="stat-label">Distance</span><span id="trip-distance" class="stat-value">0 m</span></div>
+        <div class="stat"><span class="stat-label">Duration</span><span id="trip-duration" class="stat-value">0:00</span></div>
+        <div class="stat"><span class="stat-label">Avg speed</span><span id="trip-avg" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label">Top speed</span><span id="trip-max" class="stat-value">—</span></div>
+        <div class="stat"><span class="stat-label">Points</span><span id="trip-points" class="stat-value">0</span></div>
+        <div class="stat"><span class="stat-label">Climb</span><span id="trip-climb" class="stat-value">—</span></div>
+      </div>
+      <p class="muted">Tracking keeps the screen's location watch open and draws your path on the map. Nothing leaves your device.</p>
+      <div class="actions">
+        <button id="trip-export" class="btn">Export GPX</button>
+        <button id="trip-clear" class="btn btn-danger">Clear trip</button>
+      </div>
+    </section>
+
+    <section class="tab-panel" data-panel="places" role="tabpanel">
+      <ul id="places-list" class="places"></ul>
+      <p id="places-empty" class="muted">No saved places yet. Find your location, then tap <strong>Save this place</strong>.</p>
+      <div class="actions">
+        <button id="places-export" class="btn">Export JSON</button>
+      </div>
+    </section>
+
+    <footer class="panel-foot">
+      <span id="unit-toggle-wrap">
+        <button id="unit-toggle" class="ghost-btn">metric</button>
+      </span>
+      <span class="attrib">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></span>
+    </footer>
+  </aside>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="map.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

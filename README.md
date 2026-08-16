@@ -32,8 +32,8 @@ reload.
 heading when the device reports them. The readout updates by itself as you
 move, and the map follows — the **Live** pill shows that it's running and
 pauses it when you want the battery back. Panning the map by hand stops it
-recentring on you, without stopping the updates; the ◎ control forces a fresh
-fix and recenters on demand. Toggle between decimal degrees and
+recentring on you, without stopping the updates; the target control forces a
+fresh fix and recenters on demand. Toggle between decimal degrees and
 degrees/minutes/seconds, copy the coordinates, share them as an OpenStreetMap
 link, or jump the map to coordinates you paste in.
 
@@ -127,7 +127,10 @@ Four source files plus a small set of icon assets, no dependencies, no toolchain
 - `styles.css` — light/dark theming via CSS custom properties. The map is
   always full-bleed; a single Liquid-Glass bottom sheet overlays it at every
   screen size, rather than a side panel on desktop and a different bottom
-  sheet on mobile.
+  sheet on mobile. Map controls follow the same minimal, native-map-app
+  language: no standalone zoom buttons (scroll, pinch, and the `+`/`-` keys
+  already cover it), and related controls — recenter and heading-up — share
+  one grouped pill instead of each floating as its own separate circle.
 - `map.js` — `MiniMap`, a small slippy map: Web Mercator projection, pointer
   panning, wheel and pinch zoom, marker layer, swappable basemaps, map rotation
   (one transform over a padded layer, since a rotated square needs to be bigger

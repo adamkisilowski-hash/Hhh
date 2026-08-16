@@ -845,10 +845,21 @@
       '<strong>' + escapeHtml(t('places.emptyStrong')) + '</strong>' + escapeHtml(t('places.emptySuffix'));
   }
 
+  // A classic map-pin outline — rounded top tapering to a point at (12,32),
+  // the exact spot .mm-marker-place's CSS anchors to the coordinate. Fill
+  // is currentColor (themed via that class's `color`); the punched-out dot
+  // uses the page surface color so it reads as a hole rather than a mark.
+  var PLACE_PIN_SVG =
+    '<svg viewBox="0 0 24 32" width="24" height="32" aria-hidden="true">' +
+      '<path d="M12 32C12 32 3 17.5 3 10C3 4.5 7 1 12 1C17 1 21 4.5 21 10C21 17.5 12 32 12 32Z" fill="currentColor"/>' +
+      '<circle cx="12" cy="10" r="3.5" fill="var(--surface)"/>' +
+    '</svg>';
+
   function syncPlaceMarkers() {
     map.clearMarkers('place:');
     state.places.forEach(function (p) {
-      map.setMarker('place:' + p.id, p.lat, p.lng, 'mm-marker-place', p.name);
+      var el = map.setMarker('place:' + p.id, p.lat, p.lng, 'mm-marker-place', p.name);
+      el.innerHTML = PLACE_PIN_SVG;
     });
   }
 

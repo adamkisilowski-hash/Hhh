@@ -128,9 +128,11 @@ Four source files plus a small set of icon assets, no dependencies, no toolchain
   always full-bleed; a single Liquid-Glass bottom sheet overlays it at every
   screen size, rather than a side panel on desktop and a different bottom
   sheet on mobile. Map controls follow the same minimal, native-map-app
-  language: no standalone zoom buttons (scroll, pinch, and the `+`/`-` keys
-  already cover it), and related controls — recenter and heading-up — share
-  one grouped pill instead of each floating as its own separate circle.
+  language: related controls — recenter and heading-up — share one grouped
+  pill instead of each floating as its own separate circle. Zoom buttons sit
+  apart in a smaller, dimmer pill of their own — present for anyone who
+  wants them, without competing for attention with the primary controls or
+  with scroll/pinch/`+`/`-`, all of which zoom just as well.
 - `map.js` — `MiniMap`, a small slippy map: Web Mercator projection, pointer
   panning, wheel and pinch zoom, marker layer, swappable basemaps, map rotation
   (one transform over a padded layer, since a rotated square needs to be bigger

@@ -536,6 +536,25 @@ body {
 
 .map-pod .mc-btn + .mc-btn { border-top: 1px solid var(--glass-border); }
 
+/* Zoom is here because it was asked for back, not because it competes for
+   attention with recenter/heading-up — smaller, dimmer, and a hair more
+   transparent, so it reads as a secondary control rather than a third
+   equally-weighted pill. */
+.map-pod-subtle {
+  width: 34px;
+  opacity: 0.82;
+}
+
+.map-pod-subtle .mc-btn {
+  width: 34px;
+  height: 34px;
+  color: var(--text-dim);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.map-pod-subtle .mc-btn:hover { color: var(--text); }
+
 #compass.is-active {
   color: var(--accent);
   background: var(--accent-soft);

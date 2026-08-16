@@ -13,8 +13,8 @@
  * and skips straight to the map, exactly as it did before accounts existed.
  */
 window.WHEREABOUTS_FIREBASE_CONFIG = {
-  apiKey: "PLACEHOLDER",
-  authDomain: "PLACEHOLDER",
-  projectId: "PLACEHOLDER",
-  appId: "PLACEHOLDER"
+  apiKey: "AIzaSyDykoAsKyiM0xfPPDk00KyPhF7Oh3jpfiE",
+  authDomain: "whereuare.firebaseapp.com",
+  projectId: "whereuare",
+  appId: "1:1006185976450:web:277ccf6220b4d80b969a9b"
 };

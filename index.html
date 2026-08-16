@@ -101,13 +101,19 @@
     <div id="sheet-body" class="sheet-body">
     <header class="panel-head">
       <h1>Whereabouts</h1>
-      <button id="theme-toggle" class="ghost-btn" title="Switch theme" aria-label="Switch theme">auto</button>
-    </header>
+      <div class="panel-head-actions">
+        <button id="theme-toggle" class="ghost-btn" title="Switch theme" aria-label="Switch theme">auto</button>
+        <button id="account-avatar" class="avatar-btn" hidden aria-haspopup="true" aria-expanded="false" aria-controls="account-menu" title="Account">
+          <span id="account-initial"></span>
+        </button>
+      </div>
 
-    <div id="account-row" class="account-row" hidden>
-      <span id="account-email" class="account-email"></span>
-      <button id="account-signout" class="ghost-btn">Sign out</button>
-    </div>
+      <div id="account-menu" class="account-menu" role="menu" hidden>
+        <p id="account-menu-email" class="account-menu-email"></p>
+        <button id="account-change-password" class="account-menu-item" type="button" role="menuitem">Change password</button>
+        <button id="account-signout" class="account-menu-item account-menu-item-danger" type="button" role="menuitem">Sign out</button>
+      </div>
+    </header>
 
     <nav class="tabs" role="tablist">
       <button class="tab is-active" role="tab" aria-selected="true" data-tab="now">Now</button>

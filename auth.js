@@ -121,22 +121,75 @@
         .finally(function () { setBusy(false); });
     });
 
+    /* The avatar's dropdown — kept as three tiny functions rather than a
+     * generic menu component, since this app has exactly one menu. */
+    function openMenu() {
+      $('account-menu').hidden = false;
+      $('account-avatar').setAttribute('aria-expanded', 'true');
+    }
+    function closeMenu() {
+      $('account-menu').hidden = true;
+      $('account-avatar').setAttribute('aria-expanded', 'false');
+    }
+    function menuIsOpen() { return !$('account-menu').hidden; }
+
+    $('account-avatar').addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (menuIsOpen()) closeMenu(); else openMenu();
+    });
+
+    // A click anywhere outside the menu closes it — the standard contract
+    // for any dropdown, and without it the menu would just sit open over
+    // the tabs underneath.
+    document.addEventListener('click', function (e) {
+      if (menuIsOpen() && !$('account-menu').contains(e.target) && e.target !== $('account-avatar')) closeMenu();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && menuIsOpen()) closeMenu();
+    });
+
+    $('account-change-password').addEventListener('click', function () {
+      var user = auth.currentUser;
+      if (!user || !user.email) return;
+      fbAuth.sendPasswordResetEmail(auth, user.email).then(function () {
+        closeMenu();
+        toastLike('Password reset email sent — check your inbox.');
+      }).catch(function () { closeMenu(); });
+    });
+
     $('account-signout').addEventListener('click', function () {
       // A full reload is the simplest reliable way to stop every running
       // watch/timer/poll rather than writing a bespoke teardown for each.
       fbAuth.signOut(auth).then(function () { location.reload(); });
     });
 
+    // A minimal stand-in for app.js's own toast — this module can't reach
+    // into app.js's private state, and duplicating a whole toast system for
+    // one confirmation message here isn't worth it.
+    function toastLike(message) {
+      var el = $('toast');
+      if (!el) return;
+      el.textContent = message;
+      el.hidden = false;
+      el.classList.add('is-visible');
+      setTimeout(function () {
+        el.classList.remove('is-visible');
+        setTimeout(function () { el.hidden = true; }, 250);
+      }, 2600);
+    }
+
     fbAuth.onAuthStateChanged(auth, function (user) {
       if (user) {
         $('auth-gate').hidden = true;
         $('app-root').hidden = false;
-        $('account-row').hidden = false;
-        $('account-email').textContent = user.email;
+        $('account-avatar').hidden = false;
+        $('account-initial').textContent = (user.email || '?').charAt(0).toUpperCase();
+        $('account-menu-email').textContent = user.email;
         startApp();
       } else {
         $('app-root').hidden = true;
-        $('account-row').hidden = true;
+        $('account-avatar').hidden = true;
+        closeMenu();
         $('auth-gate').hidden = false;
       }
     });

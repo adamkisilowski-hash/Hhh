@@ -38,7 +38,8 @@
     places: [],
     prefs: {
       units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'turbo',
-      headingUp: false, sheetExpanded: false, activeTab: 'now', routeProfile: 'foot-walking'
+      headingUp: false, sheetExpanded: false, activeTab: 'now', routeProfile: 'foot-walking',
+      trainMode: false
     },
     followMe: true,
     immersive: false,
@@ -60,7 +61,17 @@
     weatherAt: 0,
     weatherPoint: null,
     route: null,
-    routeBusy: false
+    routeBusy: false,
+    train: {
+      track: null,       // the railway way we think you're on
+      stations: [],      // every named station the last query found nearby
+      stops: [],         // of those, the ones ahead of you, nearest first
+      queryAt: 0,
+      queryPoint: null,
+      busy: false,
+      failed: false,
+      prevPoint: null    // for deriving heading when the GPS won't report one
+    }
   };
 
   // WMO weather codes, as used by Open-Meteo. Collapsed to the common cases —
@@ -814,6 +825,260 @@
     }).join('');
   }
 
+  /* -------------------------------------------------------- train mode */
+
+  /* What this can and cannot know, stated plainly because the difference
+   * matters: OpenStreetMap describes *infrastructure* — where the rails
+   * run, what the line is called, which stations sit on it. It says nothing
+   * about which service is running on those rails right now. So this infers
+   * the line you're on and the stations ahead of you from real mapped data
+   * plus your own speed and heading, and estimates the *kind* of service
+   * that implies. It never claims a train number: that would need a live
+   * timetable feed, which needs a backend and an operator's API key, and
+   * inventing one from a plausible guess would be worse than saying so. */
+
+  var RAILWAY_TILES = 'https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png';
+
+  // Overpass is a small, donation-funded, heavily-loaded shared service, so
+  // this is deliberately frugal: only while train mode is on, at most once
+  // a minute, and only once you've actually moved far enough for the answer
+  // to plausibly have changed. A train covers 500 m in well under a minute,
+  // so in practice the interval floor is what governs.
+  var TRAIN_QUERY_INTERVAL = 60000;
+  var TRAIN_QUERY_DISTANCE = 500;
+  var OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+
+  // Rails that carry a service worth naming, scored so a running line beats
+  // the sidings and yard tracks that sit alongside it in every station.
+  function scoreTrack(tags) {
+    var score = 0;
+    if (tags.name || tags.ref) score += 2;
+    if (tags.usage === 'main') score += 3;
+    else if (tags.usage === 'branch') score += 2;
+    // service=* on a railway means siding/yard/spur/crossover — real rails,
+    // but not the line a passenger service runs on.
+    if (tags.service) score -= 4;
+    if (tags.railway === 'rail') score += 1;
+    return score;
+  }
+
+  function pickTrack(ways) {
+    var best = null, bestScore = -Infinity;
+    ways.forEach(function (w) {
+      var tags = w.tags || {};
+      var s = scoreTrack(tags);
+      if (s > bestScore) { bestScore = s; best = tags; }
+    });
+    return best;
+  }
+
+  /* The service estimate. Track class carries most of it — a subway tunnel
+   * is never an intercity — with speed breaking the remaining tie between
+   * long-distance and regional services on shared main line. */
+  function estimateService(tags, speedMps) {
+    if (!tags) return null;
+    var kmh = (speedMps != null && !isNaN(speedMps)) ? speedMps * 3.6 : null;
+    switch (tags.railway) {
+      case 'subway': return 'train.svcSubway';
+      case 'tram': return 'train.svcTram';
+      case 'light_rail': return 'train.svcLightRail';
+      case 'monorail': return 'train.svcMonorail';
+      case 'narrow_gauge': return 'train.svcNarrowGauge';
+    }
+    if (tags.highspeed === 'yes' || (kmh != null && kmh > 200)) return 'train.svcHighSpeed';
+    if (kmh != null && kmh > 120) return 'train.svcIntercity';
+    if (tags.usage === 'branch') return 'train.svcRegional';
+    if (tags.usage === 'main') return 'train.svcMainLine';
+    return 'train.svcRail';
+  }
+
+  /* How much to trust the above. A named main line under you while you're
+   * moving at train speed with stations lining up ahead is about as good as
+   * this gets; an unnamed track while stationary is a guess and says so. */
+  function trainConfidence(tags, speedMps, stops) {
+    var named = !!(tags && (tags.name || tags.ref));
+    var moving = speedMps != null && speedMps > 8; // ~30 km/h, past tram-in-traffic
+    if (named && moving && stops.length) return 'high';
+    if (named && (moving || stops.length)) return 'medium';
+    return 'low';
+  }
+
+  // Which way are we pointing? The GPS reports a heading when it's confident;
+  // when it isn't, two fixes far enough apart give the same answer.
+  function trainHeading() {
+    var c = state.position && state.position.coords;
+    if (c && c.heading != null && !isNaN(c.heading) && c.speed != null && c.speed > 2) return c.heading;
+    var prev = state.train.prevPoint;
+    if (!prev || !c) return null;
+    var here = { lat: c.latitude, lng: c.longitude };
+    return distance(prev, here) > 60 ? bearing(prev, here) : null;
+  }
+
+  /* Stations you're heading towards, nearest first. A cone rather than a
+   * strict bearing because track curves: a stop 10 km down a bending line
+   * is still ahead of you even when it isn't straight ahead of you. This is
+   * the honest limit of doing it without the line's own geometry — good for
+   * the next few stops, vaguer the further out it reaches. */
+  function stopsAhead(here, headingDeg, stations, speedMps) {
+    if (headingDeg == null) return [];
+    return stations
+      .map(function (s) {
+        var d = distance(here, s);
+        return {
+          name: s.name,
+          lat: s.lat,
+          lng: s.lng,
+          distance: d,
+          off: Math.abs(angleDelta(headingDeg, bearing(here, s))),
+          eta: (speedMps != null && speedMps > 2) ? d / speedMps : null
+        };
+      })
+      .filter(function (s) { return s.off < 75 && s.distance > 250; })
+      .sort(function (a, b) { return a.distance - b.distance; })
+      .slice(0, 6);
+  }
+
+  function maybeQueryRailway(lat, lng) {
+    if (!state.prefs.trainMode || state.train.busy) return;
+    var last = state.train.queryPoint;
+    var due = true;
+    if (last) {
+      var moved = distance(last, { lat: lat, lng: lng });
+      due = (Date.now() - state.train.queryAt) > TRAIN_QUERY_INTERVAL && moved > TRAIN_QUERY_DISTANCE;
+    }
+    if (!due) return;
+    queryRailway(lat, lng);
+  }
+
+  function queryRailway(lat, lng) {
+    state.train.busy = true;
+    state.train.queryAt = Date.now();
+    state.train.queryPoint = { lat: lat, lng: lng };
+
+    // Two named sets so each gets its own result cap — without that, a dense
+    // city's stations could crowd the track we're actually standing on out
+    // of a shared limit.
+    var query = '[out:json][timeout:25];' +
+      'way(around:80,' + lat + ',' + lng + ')' +
+      '["railway"~"^(rail|light_rail|subway|tram|narrow_gauge|monorail)$"]->.tracks;' +
+      'node(around:15000,' + lat + ',' + lng + ')["railway"~"^(station|halt)$"]["name"]->.stops;' +
+      '.tracks out tags 12;' +
+      '.stops out 150;';
+
+    fetch(OVERPASS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'data=' + encodeURIComponent(query)
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('overpass failed: ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        var elements = (data && data.elements) || [];
+        var ways = elements.filter(function (e) { return e.type === 'way'; });
+        var stations = elements.filter(function (e) {
+          return e.type === 'node' && e.tags && e.tags.name && e.lat != null;
+        }).map(function (e) {
+          return { name: e.tags.name, lat: e.lat, lng: e.lon, railway: e.tags.railway };
+        });
+
+        state.train.track = pickTrack(ways);
+        state.train.stations = stations;
+        state.train.failed = false;
+        // Cleared before rendering, not in a .finally() afterwards: the
+        // render reads this flag to decide between "still looking" and
+        // "looked, found nothing", and .finally() runs too late for that.
+        state.train.busy = false;
+        renderTrain();
+      })
+      .catch(function () {
+        state.train.failed = true;
+        state.train.busy = false;
+        renderTrain();
+      });
+  }
+
+  function setTrainMode(on) {
+    state.prefs.trainMode = on;
+    savePrefs();
+    map.setOverlayTileUrl(on ? RAILWAY_TILES : null);
+    $('tab-train').hidden = !on;
+    applyToggleLabels();
+
+    if (on) {
+      state.train.failed = false;
+      activateTab('train');
+      state.prefs.activeTab = 'train';
+      savePrefs();
+      var c = state.position && state.position.coords;
+      if (c) queryRailway(c.latitude, c.longitude);
+    } else {
+      // Nothing about a mode you've left should linger on screen.
+      state.train.track = null;
+      state.train.stations = [];
+      state.train.stops = [];
+      state.train.queryPoint = null;
+      state.train.queryAt = 0;
+      if (state.prefs.activeTab === 'train') {
+        activateTab('now');
+        state.prefs.activeTab = 'now';
+        savePrefs();
+      }
+    }
+    renderTrain();
+  }
+
+  function renderTrain() {
+    if (!state.prefs.trainMode) return;
+
+    var c = state.position && state.position.coords;
+    var speed = c ? c.speed : null;
+    var tags = state.train.track;
+    var here = c ? { lat: c.latitude, lng: c.longitude } : null;
+    var stops = here ? stopsAhead(here, trainHeading(), state.train.stations || [], speed) : [];
+    state.train.stops = stops;
+
+    var known = !!tags;
+    $('train-card').hidden = !known;
+    $('train-status').hidden = known;
+
+    if (!known) {
+      $('train-status').textContent = state.train.failed
+        ? t('train.lookupFailed')
+        : (state.train.busy ? t('train.searching') : t('train.noTrack'));
+    } else {
+      var service = estimateService(tags, speed);
+      var confidence = trainConfidence(tags, speed, stops);
+      $('train-service').textContent = t(service);
+      $('train-confidence').textContent = t('train.confidence' +
+        confidence.charAt(0).toUpperCase() + confidence.slice(1));
+      $('train-confidence').dataset.level = confidence;
+
+      var lineName = tags.name || tags.ref;
+      $('train-line').textContent = lineName ? t('train.onLine', { line: lineName }) : t('train.unnamedLine');
+      $('train-line').hidden = false;
+
+      var far = stops.length ? stops[stops.length - 1] : null;
+      $('train-direction').hidden = !far;
+      if (far) $('train-direction').textContent = t('train.towards', { stop: far.name });
+    }
+
+    $('train-speed').textContent = formatSpeed(speed);
+    $('train-next').textContent = stops.length ? stops[0].name : '—';
+
+    var list = $('train-stops');
+    $('train-stops-empty').hidden = stops.length > 0;
+    list.innerHTML = stops.map(function (s) {
+      return '<li class="train-stop">' +
+        '<span class="train-stop-name">' + escapeHtml(s.name) + '</span>' +
+        '<span class="train-stop-meta">' + escapeHtml(formatDistance(s.distance)) +
+          (s.eta != null ? ' · ' + escapeHtml(formatEta(s.eta)) : '') +
+        '</span>' +
+      '</li>';
+    }).join('');
+  }
+
   function handlePosition(pos, recenter) {
     if (!recenter && isWorseFix(pos)) return;
     state.position = pos;
@@ -830,6 +1095,7 @@
     if (state.tracking) appendTrackPoint(point);
     maybeLookUpStreet(point.lat, point.lng);
     maybeFetchWeather(point.lat, point.lng);
+    maybeQueryRailway(point.lat, point.lng);
 
     map.setMarker('me', point.lat, point.lng, 'mm-marker-me', t('now.youAreHere'));
     map.setAccuracy(point.lat, point.lng, c.accuracy);
@@ -840,6 +1106,12 @@
 
     renderNow();
     renderPlaces();
+    renderTrain();
+    // Kept behind the same threshold the heading fallback needs, so a fix
+    // that has barely moved doesn't overwrite the one useful reference point.
+    if (!state.train.prevPoint || distance(state.train.prevPoint, point) > 60) {
+      state.train.prevPoint = { lat: point.lat, lng: point.lng };
+    }
     syncHash();
   }
 
@@ -1288,6 +1560,8 @@
       $('route-profile-toggle').hidden = false;
       $('route-profile-toggle').textContent = t(ROUTE_PROFILE_KEYS[state.prefs.routeProfile]);
     }
+    $('train-toggle').textContent = t(state.prefs.trainMode ? 'train.modeOn' : 'train.modeOff');
+    $('train-toggle').classList.toggle('is-on', !!state.prefs.trainMode);
   }
 
   function wireUI() {
@@ -1357,6 +1631,10 @@
       state.prefs.routeProfile = ROUTE_PROFILES[(i + 1) % ROUTE_PROFILES.length];
       savePrefs();
       applyToggleLabels();
+    });
+
+    $('train-toggle').addEventListener('click', function () {
+      setTrainMode(!state.prefs.trainMode);
     });
 
     $('copy').addEventListener('click', function () {
@@ -1564,6 +1842,16 @@
     applyToggleLabels();
     applyPlacesEmptyText();
 
+    // Train mode survives a reload the same way every other preference does,
+    // so a phone that locked mid-journey comes back to the same screen. The
+    // overlay and tab are restored directly rather than through
+    // setTrainMode(), which would also force the tab and fire a query before
+    // there's a fix to query with.
+    if (state.prefs.trainMode) {
+      map.setOverlayTileUrl(RAILWAY_TILES);
+      $('tab-train').hidden = false;
+    }
+
     // Remembers where you left the sheet and which tab was open.
     activateTab(state.prefs.activeTab || 'now');
     setSheetExpanded(!!state.prefs.sheetExpanded);
@@ -1590,6 +1878,7 @@
       renderCompass();
       renderWeather();
       renderRoute();
+      renderTrain();
       renderPlaces();
       if (state.position) renderNow(); else renderSheetSummary();
       renderTrip();

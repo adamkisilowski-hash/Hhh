@@ -58,6 +58,15 @@
     this.tileLayer = document.createElement('div');
     this.tileLayer.className = 'mm-tiles';
 
+    /* A second, optional raster layer painted over the basemap — used for
+     * the railway overlay in train mode. Kept as its own tile cache rather
+     * than folded into the basemap's, so toggling it on and off doesn't
+     * disturb any basemap tile that's already loaded. */
+    this.overlayTileLayer = document.createElement('div');
+    this.overlayTileLayer.className = 'mm-tiles mm-tiles-overlay';
+    this.overlayTiles = Object.create(null);
+    this.overlayTileUrl = options.overlayTileUrl || null;
+
     this.overlay = document.createElementNS(SVG_NS, 'svg');
     this.overlay.setAttribute('class', 'mm-overlay');
 
@@ -102,6 +111,7 @@
     this.rotator = document.createElement('div');
     this.rotator.className = 'mm-rotator';
     this.rotator.appendChild(this.tileLayer);
+    this.rotator.appendChild(this.overlayTileLayer);
     this.rotator.appendChild(this.overlay);
     this.rotator.appendChild(this.markerLayer);
     this.el.appendChild(this.rotator);
@@ -483,11 +493,25 @@
     return this;
   };
 
+  // Null clears the overlay entirely (and drops its tiles); anything else
+  // swaps it, same drop-and-reload contract as the basemap above.
+  MiniMap.prototype.setOverlayTileUrl = function (url) {
+    if (url === this.overlayTileUrl) return this;
+    this.overlayTileUrl = url || null;
+    for (var key in this.overlayTiles) {
+      this.overlayTiles[key].remove();
+      delete this.overlayTiles[key];
+    }
+    this.render();
+    return this;
+  };
+
+  function fillTemplate(template, z, x, y) {
+    return template.replace('{z}', z).replace('{x}', x).replace('{y}', y);
+  }
+
   MiniMap.prototype._tileUrl = function (z, x, y) {
-    return this.tileUrl
-      .replace('{z}', z)
-      .replace('{x}', x)
-      .replace('{y}', y);
+    return fillTemplate(this.tileUrl, z, x, y);
   };
 
   MiniMap.prototype.render = function () {
@@ -513,41 +537,59 @@
     var minY = clamp(Math.floor(o.y / TILE), 0, n - 1);
     var maxY = clamp(Math.floor((o.y + h) / TILE), 0, n - 1);
 
+    var box = { z: z, n: n, o: o, minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+    this._renderTileLayer(this.tileLayer, this.tiles, this.tileUrl, box);
+    this._renderTileLayer(this.overlayTileLayer, this.overlayTiles, this.overlayTileUrl, box);
+
+    this._placeMarkers();
+    this._drawOverlay();
+  };
+
+  /* One loop, two layers: the basemap and the optional overlay differ only
+   * in which cache and URL template they draw from, so they share this
+   * rather than keeping two copies of the same tiling arithmetic in step. */
+  MiniMap.prototype._renderTileLayer = function (layerEl, cache, template, box) {
+    var key;
+    if (!template) {
+      for (key in cache) {
+        cache[key].remove();
+        delete cache[key];
+      }
+      return;
+    }
+
     var wanted = Object.create(null);
 
-    for (var x = minX; x <= maxX; x++) {
-      for (var y = minY; y <= maxY; y++) {
+    for (var x = box.minX; x <= box.maxX; x++) {
+      for (var y = box.minY; y <= box.maxY; y++) {
         // Wrap horizontally so panning past the antimeridian keeps working.
-        var tx = ((x % n) + n) % n;
-        var key = z + '/' + tx + '/' + y + '@' + x;
-        wanted[key] = true;
+        var tx = ((x % box.n) + box.n) % box.n;
+        var k = box.z + '/' + tx + '/' + y + '@' + x;
+        wanted[k] = true;
 
-        var tile = this.tiles[key];
+        var tile = cache[k];
         if (!tile) {
           tile = document.createElement('img');
           tile.className = 'mm-tile';
           tile.alt = '';
           tile.decoding = 'async';
           tile.loading = 'eager';
-          tile.src = this._tileUrl(z, tx, y);
+          tile.src = fillTemplate(template, box.z, tx, y);
           tile.addEventListener('load', function () { this.classList.add('is-loaded'); });
           tile.addEventListener('error', function () { this.classList.add('is-error'); });
-          this.tileLayer.appendChild(tile);
-          this.tiles[key] = tile;
+          layerEl.appendChild(tile);
+          cache[k] = tile;
         }
-        tile.style.transform = 'translate(' + (x * TILE - o.x) + 'px,' + (y * TILE - o.y) + 'px)';
+        tile.style.transform = 'translate(' + (x * TILE - box.o.x) + 'px,' + (y * TILE - box.o.y) + 'px)';
       }
     }
 
-    for (var key2 in this.tiles) {
-      if (!wanted[key2]) {
-        this.tiles[key2].remove();
-        delete this.tiles[key2];
+    for (key in cache) {
+      if (!wanted[key]) {
+        cache[key].remove();
+        delete cache[key];
       }
     }
-
-    this._placeMarkers();
-    this._drawOverlay();
   };
 
   MiniMap.metersPerPixel = metersPerPixel;

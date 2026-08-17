@@ -139,6 +139,39 @@ way every other preference here is. A destination with no viable route, or
 a request that just fails, says so rather than leaving the button looking
 like it did nothing.
 
+**Train** — a mode for riding the rails, off by default and toggled from the
+footer. Switching it on paints every railway on the map (OpenRailwayMap's
+overlay, drawn over whichever basemap you're using) and adds a **Train** tab
+that works out what you're travelling on:
+
+- **The track under you.** A small Overpass query finds the railways within
+  80 m and picks the one you're plausibly running on — sidings, yards and
+  crossovers score *down* precisely because every station is full of them,
+  so a named main line wins over the spur beside it.
+- **The kind of service.** Track class settles most of it (a subway tunnel
+  is never an intercity), with your speed breaking the remaining tie between
+  long-distance and regional on shared main line.
+- **Where you're going.** Stations within 15 km, filtered to those ahead of
+  you and sorted nearest-first, with distance and an ETA from your current
+  speed. Heading comes from the GPS when it reports one and from consecutive
+  fixes when it doesn't, so this needs you to actually be moving before it
+  can tell one direction along a line from the other.
+
+**What it deliberately does not do is name your train.** OpenStreetMap
+describes infrastructure — where rails run, what a line is called, which
+stations sit on it. It says nothing about which service is running on those
+rails right now. Identifying *your* train as a specific numbered service
+needs a live timetable feed, which needs a backend and an operator's API
+key; guessing a plausible-looking train number instead would be worse than
+saying so. The estimate is labelled with its own confidence — **confident**
+when a named line, train-like speed and stations lining up ahead all agree,
+down to **rough guess** when they don't.
+
+Overpass is a small, donation-funded, heavily-loaded shared service, so the
+queries are frugal on purpose: only while train mode is on, at most once a
+minute, and only once you've moved 500 m — comfortably inside its usage
+policy rather than polling it on every fix.
+
 **Heading up** — the compass control turns the map so it points the way your
 device is pointing, with the needle staying true to north and every marker
 counter-rotated to stay upright. It uses `webkitCompassHeading` on iOS (behind
@@ -188,12 +221,15 @@ Six source files plus a small set of icon assets, no dependencies, no toolchain:
   wants them, without competing for attention with the primary controls or
   with scroll/pinch/`+`/`-`, all of which zoom just as well.
 - `map.js` — `MiniMap`, a small slippy map: Web Mercator projection, pointer
-  panning, wheel and pinch zoom, marker layer, swappable basemaps, map rotation
-  (one transform over a padded layer, since a rotated square needs to be bigger
-  than its viewport), an SVG overlay for the accuracy circle, the recorded
-  track and a route line (each its own layer, drawn twice — casing under
-  line — so any of them stays legible over any background), and `fitBounds`
-  to frame a whole route rather than just recentering on one end of it
+  panning, wheel and pinch zoom, marker layer, swappable basemaps plus an
+  optional second raster layer over the top (the railway overlay in train
+  mode, with its own tile cache so toggling it never disturbs a basemap tile
+  already on screen), map rotation (one transform over a padded layer, since
+  a rotated square needs to be bigger than its viewport), an SVG overlay for
+  the accuracy circle, the recorded track and a route line (each its own
+  layer, drawn twice — casing under line — so any of them stays legible over
+  any background), and `fitBounds` to frame a whole route rather than just
+  recentering on one end of it
 - `app.js` — geolocation, formatting, trip maths, storage, and UI wiring
 - `auth.js` — the sign-in gate; see **Accounts** below
 - `i18n.js` — the English/German/Polish dictionary and the `t(key, vars)`
@@ -229,10 +265,16 @@ which are minimal enough that your position and track stay the loudest things on
 screen. Having a real dark basemap beats inverting a light one: inversion gets
 the ground right but turns every label into a photographic negative.
 
+Train mode adds a second raster layer on top: [OpenRailwayMap](https://www.openrailwaymap.org)'s
+standard style, which draws the rails themselves. It's designed for a light
+background, so on the dark basemap it's brightened rather than left to sink
+into it.
+
 Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors,
-tiles © [CARTO](https://carto.com/attributions). Both are free for personal use
-and neither is meant to carry production traffic — point `BASEMAP` at your own
-tile source or a paid provider before deploying this anywhere busy.
+tiles © [CARTO](https://carto.com/attributions) and © [OpenRailwayMap](https://www.openrailwaymap.org).
+All are free for personal use and none is meant to carry production traffic —
+point `BASEMAP` and `RAILWAY_TILES` at your own tile source or a paid provider
+before deploying this anywhere busy.
 
 ## Accounts
 
@@ -312,9 +354,10 @@ never to a server of this app's own (there isn't one): map tile images (see
 below), naming the street you're on and finding current weather (both to
 OpenStreetMap's Nominatim and Open-Meteo respectively, and only for where
 you currently are), searching an address you typed (also Nominatim, sent
-only when you submit that search), and — only once you've set up navigation
-— the route request when you tap **Navigate**, which sends both your current
-position and the destination to OpenRouteService. None of these run in the
+only when you submit that search), the railway lookup while **train mode**
+is on (to Overpass, at most once a minute), and — only once you've set up
+navigation — the route request when you tap **Navigate**, which sends both
+your current position and the destination to OpenRouteService. None of these run in the
 background beyond what's needed to keep the readout current; nothing about
 your history or habits accumulates anywhere but your own device. If you've
 set up sign-in, the one other thing that leaves the device is the

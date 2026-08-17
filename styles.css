@@ -431,22 +431,6 @@ body {
   opacity: 0.9;
 }
 
-.mm-route {
-  stroke: var(--accent);
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 1 10;
-}
-
-.mm-route-casing {
-  stroke: var(--surface);
-  stroke-width: 8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.9;
-}
-
 .mm-accuracy {
   fill: var(--accent);
   fill-opacity: 0.12;
@@ -549,6 +533,66 @@ body {
 
 .mc-btn svg { display: block; }
 
+/* The gear rotates between two fixed angles rather than running a keyframe
+   animation, so closing runs the same arc backwards for free — and an
+   interrupted click reverses from wherever it had got to instead of
+   snapping back to the start. */
+.mc-settings-icon {
+  transition: transform 0.45s cubic-bezier(0.34, 1.15, 0.5, 1);
+}
+
+.map-controls.is-open .mc-settings-icon { transform: rotate(180deg); }
+
+.map-controls.is-open .mc-settings {
+  color: var(--accent);
+  background: var(--glass-hover);
+}
+
+.map-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  /* Hidden rather than merely transparent once the fade finishes, so the
+     buttons leave the tab order too — a control you can't see shouldn't be
+     the next thing keyboard focus lands on. */
+  visibility: hidden;
+  transition: visibility 0s linear 0.24s;
+}
+
+.map-controls.is-open .map-tools {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.map-tools > * {
+  --tool-rest-opacity: 1;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.8);
+  transform-origin: top center;
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.3, 1.3, 0.6, 1);
+}
+
+.map-controls.is-open .map-tools > * {
+  opacity: var(--tool-rest-opacity);
+  transform: none;
+}
+
+/* Cascade away from the gear on the way out, and back towards it on the
+   way in, so the group reads as one motion rather than three. */
+.map-tools > *:nth-child(1) { transition-delay: 0.10s; }
+.map-tools > *:nth-child(2) { transition-delay: 0.05s; }
+.map-tools > *:nth-child(3) { transition-delay: 0s; }
+.map-controls.is-open .map-tools > *:nth-child(1) { transition-delay: 0.02s; }
+.map-controls.is-open .map-tools > *:nth-child(2) { transition-delay: 0.07s; }
+.map-controls.is-open .map-tools > *:nth-child(3) { transition-delay: 0.12s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-settings-icon,
+  .map-tools,
+  .map-tools > * { transition-duration: 0s; transition-delay: 0s; }
+}
+
 /* Related controls share one pill instead of each floating as its own
    separate circle — the grouping Apple Maps uses for its own paired
    controls, rather than a loose stack of every available button. */
@@ -580,7 +624,11 @@ body {
    equally-weighted pill. */
 .map-pod-subtle {
   width: 34px;
-  opacity: 0.82;
+  /* Its own resting opacity, expressed as a variable because the reveal
+     animation below animates opacity too and would otherwise flatten this
+     deliberate dimming back to 1 on open. */
+  --tool-rest-opacity: 0.82;
+  opacity: var(--tool-rest-opacity);
 }
 
 .map-pod-subtle .mc-btn {
@@ -975,93 +1023,6 @@ body.is-immersive .sheet { display: none; }
 .weather-icon { font-size: 16px; line-height: 1; }
 .weather-text { font-weight: 500; }
 
-.route-row[hidden] { display: none; }
-
-.route-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px 11px;
-  background: var(--accent-soft);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 13px;
-}
-
-.route-icon { font-size: 16px; line-height: 1; }
-
-.route-summary-toggle {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.route-text {
-  flex: 1;
-  min-width: 0;
-  font-weight: 500;
-  color: var(--accent);
-}
-
-/* A plain triangle rather than a real icon — this is the one place in the
-   app that needed an expand/collapse indicator outside <details>, whose
-   native marker already covers the address/coordinate disclosures. */
-.route-summary-toggle::after {
-  content: "▸";
-  flex: none;
-  color: var(--accent);
-  font-size: 11px;
-  transition: transform 0.15s ease;
-}
-
-.route-summary-toggle[aria-expanded="true"]::after { transform: rotate(90deg); }
-
-.route-steps[hidden] { display: none; }
-
-.route-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 6px 0 0;
-  padding: 8px 11px 8px 28px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 12.5px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.route-step {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.route-step-instruction { flex: 1; min-width: 0; }
-.route-step-dist { flex: none; color: var(--text-dim); white-space: nowrap; }
-
-.route-clear {
-  flex: none;
-  padding: 2px 6px;
-  border: none;
-  background: none;
-  color: var(--text-dim);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.route-clear:hover { color: var(--text); }
 
 .live-row {
   display: flex;
@@ -1385,21 +1346,6 @@ body.is-immersive .sheet { display: none; }
 }
 
 .train-disclaimer { margin-top: 14px; }
-
-.place-nav {
-  flex: none;
-  width: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-left: 1px solid var(--border);
-  background: none;
-  color: var(--text-dim);
-  cursor: pointer;
-}
-
-.place-nav:hover { background: var(--accent-soft); color: var(--accent); }
 
 .place-del {
   flex: none;

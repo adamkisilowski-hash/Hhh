@@ -59,33 +59,42 @@
   <main class="stage">
     <div id="map" class="map" aria-label="Map of your location"></div>
 
-    <div class="map-controls">
-      <div class="map-pod map-pod-subtle" role="group" aria-label="Zoom controls">
-        <button id="zoom-in" class="mc-btn mc-btn-subtle" data-i18n-title="controls.zoomIn">+</button>
-        <button id="zoom-out" class="mc-btn mc-btn-subtle" data-i18n-title="controls.zoomOut">−</button>
-      </div>
-      <div class="map-pod" role="group" aria-label="Location controls">
-        <button id="recenter" class="mc-btn" data-i18n-title="controls.recenter">
-          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <circle cx="12" cy="12" r="7"/>
-            <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>
-          </svg>
-        </button>
-        <button id="compass" class="mc-btn" data-i18n-title="controls.compassOff" data-i18n-aria="controls.compassAria" aria-pressed="false">
-          <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
-            <g id="compass-needle" style="transform-origin:center">
-              <path d="M12 3.5 L15.4 13 L12 11 L8.6 13 Z" fill="currentColor"/>
-              <path d="M12 20.5 L8.6 11 L12 13 L15.4 11 Z" fill="currentColor" opacity="0.32"/>
-            </g>
-          </svg>
-        </button>
-      </div>
-      <button id="fullscreen" class="mc-btn" data-i18n-title="controls.fullscreenEnter" aria-pressed="false">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <path class="fs-expand" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
-          <path class="fs-collapse" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>
+    <div id="map-controls" class="map-controls">
+      <button id="map-settings" class="mc-btn mc-settings" data-i18n-title="controls.settings" aria-expanded="false" aria-controls="map-tools">
+        <svg class="mc-settings-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.1"/>
+          <path d="M19.4 13.6a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V20a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H4a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H10a1.7 1.7 0 0 0 1.03-1.56V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10a1.7 1.7 0 0 0 1.56 1.03H20a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.56 1.03z"/>
         </svg>
       </button>
+
+      <div id="map-tools" class="map-tools">
+        <div class="map-pod map-pod-subtle" role="group" aria-label="Zoom controls">
+          <button id="zoom-in" class="mc-btn mc-btn-subtle" data-i18n-title="controls.zoomIn">+</button>
+          <button id="zoom-out" class="mc-btn mc-btn-subtle" data-i18n-title="controls.zoomOut">−</button>
+        </div>
+        <div class="map-pod" role="group" aria-label="Location controls">
+          <button id="recenter" class="mc-btn" data-i18n-title="controls.recenter">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="7"/>
+              <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
+          <button id="compass" class="mc-btn" data-i18n-title="controls.compassOff" data-i18n-aria="controls.compassAria" aria-pressed="false">
+            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+              <g id="compass-needle" style="transform-origin:center">
+                <path d="M12 3.5 L15.4 13 L12 11 L8.6 13 Z" fill="currentColor"/>
+                <path d="M12 20.5 L8.6 11 L12 13 L15.4 11 Z" fill="currentColor" opacity="0.32"/>
+              </g>
+            </svg>
+          </button>
+        </div>
+        <button id="fullscreen" class="mc-btn" data-i18n-title="controls.fullscreenEnter" aria-pressed="false">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path class="fs-expand" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
+            <path class="fs-collapse" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div id="hud" class="hud" hidden>
@@ -164,15 +173,6 @@
         <span id="weather-icon" class="weather-icon" aria-hidden="true"></span>
         <span id="weather-text" class="weather-text"></span>
       </div>
-
-      <div id="route-row" class="route-row" hidden>
-        <span class="route-icon" aria-hidden="true">🧭</span>
-        <button id="route-summary-toggle" class="route-summary-toggle" type="button" aria-expanded="false" aria-controls="route-steps">
-          <span id="route-text" class="route-text"></span>
-        </button>
-        <button id="route-clear" class="route-clear" type="button" data-i18n-aria="route.stop">×</button>
-      </div>
-      <ol id="route-steps" class="route-steps" hidden></ol>
 
       <div class="live-row">
         <p id="fix-age" class="muted" data-i18n="toast.noFix">No fix yet.</p>
@@ -258,7 +258,6 @@
       <span class="foot-controls">
         <button id="unit-toggle" class="ghost-btn">metric</button>
         <button id="rate-toggle" class="ghost-btn" data-i18n-title="footer.rateTitle">every 2s</button>
-        <button id="route-profile-toggle" class="ghost-btn" hidden data-i18n-title="route.profileTitle">walking</button>
         <button id="train-toggle" class="ghost-btn" data-i18n-title="train.modeTitle">train off</button>
       </span>
       <span class="attrib">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>, <a href="https://www.openrailwaymap.org" target="_blank" rel="noopener">ORM</a></span>
@@ -271,7 +270,6 @@
 
 <script src="i18n.js"></script>
 <script src="firebase-config.js"></script>
-<script src="ors-config.js"></script>
 <script src="map.js"></script>
 <script src="app.js"></script>
 <script type="module" src="auth.js"></script>

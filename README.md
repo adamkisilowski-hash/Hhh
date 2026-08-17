@@ -180,8 +180,20 @@ fix twice and only costs battery. This is the expensive part of the battery
 bill, so it's a control rather than a fixed choice, and the Live pill pauses it
 outright.
 
-Preferences (metric/imperial, coordinate format, theme, refresh rate, language)
-and saved places persist in `localStorage`.
+**App colour** — a swatch strip at the foot of the sheet recolours the whole
+app's accent — the location dot, the track line, the active tab, the primary
+buttons — from a small curated palette, plus a **custom** swatch that opens
+the OS colour picker (on iOS, the full system colour sheet). A chosen colour
+applies identically in both light and dark rather than being theme-shifted,
+and the **default** swatch — split light/dark to signal it follows the theme
+— hands the accent back to the theme-aware stylesheet value. Button text on
+the accent flips between black and white by the colour's own luminance, so a
+pale amber doesn't leave a primary button labelled in near-invisible white.
+Deriving that, and the translucent "soft" fill, from a single chosen hex
+means the whole family stays in step from one setting.
+
+Preferences (metric/imperial, coordinate format, theme, refresh rate,
+language, accent colour) and saved places persist in `localStorage`.
 
 ## Language
 

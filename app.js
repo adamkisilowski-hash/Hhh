@@ -27,7 +27,8 @@
     places: [],
     prefs: {
       units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'turbo',
-      headingUp: false, sheetExpanded: false, activeTab: 'now', trainMode: false
+      headingUp: false, sheetExpanded: false, activeTab: 'now', trainMode: false,
+      accent: null
     },
     followMe: true,
     immersive: false,
@@ -1387,6 +1388,113 @@
     $('theme-color').setAttribute('content', prefersDark() ? '#0d1117' : '#f5f6f8');
   }
 
+  /* -------------------------------------------------------- accent colour */
+
+  /* A chosen accent overrides the whole --accent family on the document
+   * root, which every accent-coloured thing already reads through — the
+   * location dot, the track line, primary buttons, active tabs. An inline
+   * style on the root beats the stylesheet's :root rules, so it wins in
+   * both light and dark; the default (null) removes the override and lets
+   * the theme-aware stylesheet value take back over. */
+  var ACCENT_PRESETS = [
+    '#2563eb', '#0ea5e9', '#14b8a6', '#22c55e',
+    '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#64748b'
+  ];
+
+  function hexToRgb(hex) {
+    var h = hex.replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16)
+    };
+  }
+
+  // A translucent wash of the accent, for the soft-fill backgrounds.
+  function accentSoft(hex) {
+    var c = hexToRgb(hex);
+    return 'rgba(' + c.r + ', ' + c.g + ', ' + c.b + ', 0.15)';
+  }
+
+  // Black or white, whichever reads on top of the accent — a yellow button
+  // needs dark text, a navy one needs white, and guessing wrong makes the
+  // primary button's own label vanish. Standard relative-luminance test.
+  function accentText(hex) {
+    var c = hexToRgb(hex);
+    var lin = function (v) {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    };
+    var L = 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+    // Tuned so genuinely light accents (amber, yellow, pale customs) take
+    // dark text, while mid blues/greens/reds keep white — the conventional
+    // pairing rather than the strict max-contrast one, which would put dark
+    // text on a red button.
+    return L > 0.42 ? '#14171c' : '#ffffff';
+  }
+
+  function applyAccent() {
+    var root = document.documentElement.style;
+    var hex = state.prefs.accent;
+    if (!hex) {
+      root.removeProperty('--accent');
+      root.removeProperty('--accent-soft');
+      root.removeProperty('--accent-text');
+      return;
+    }
+    root.setProperty('--accent', hex);
+    root.setProperty('--accent-soft', accentSoft(hex));
+    root.setProperty('--accent-text', accentText(hex));
+  }
+
+  function buildAccentSwatches() {
+    var host = $('accent-presets');
+    host.innerHTML = '';
+    ACCENT_PRESETS.forEach(function (hex) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'accent-swatch';
+      b.dataset.accent = hex;
+      // The ring drawn on the active swatch is currentColor, so each swatch
+      // carries its own colour rather than sharing one accent variable.
+      b.style.color = hex;
+      b.style.background = hex;
+      b.title = hex;
+      b.addEventListener('click', function () { setAccent(hex); });
+      host.appendChild(b);
+    });
+  }
+
+  function renderAccentSwatches() {
+    var current = state.prefs.accent;
+    var isPreset = current && ACCENT_PRESETS.some(function (h) {
+      return h.toLowerCase() === current.toLowerCase();
+    });
+
+    $('accent-default').classList.toggle('is-active', !current);
+    $('accent-default').style.color = getComputedStyle(document.documentElement)
+      .getPropertyValue('--accent').trim() || '#2563eb';
+
+    Array.prototype.forEach.call($('accent-presets').children, function (b) {
+      b.classList.toggle('is-active', !!current && b.dataset.accent.toLowerCase() === current.toLowerCase());
+    });
+
+    var custom = document.querySelector('.accent-custom');
+    var customActive = !!current && !isPreset;
+    custom.classList.toggle('is-active', customActive);
+    custom.style.color = customActive ? current : '';
+    custom.classList.toggle('has-colour', customActive);
+    if (customActive) $('accent-custom-input').value = current;
+  }
+
+  function setAccent(hex) {
+    state.prefs.accent = hex || null;
+    savePrefs();
+    applyAccent();
+    renderAccentSwatches();
+  }
+
   function activateTab(name) {
     document.querySelectorAll('.tab').forEach(function (t) {
       var active = t.dataset.tab === name;
@@ -1441,6 +1549,17 @@
   function wireUI() {
     $('map-settings').addEventListener('click', function () {
       setMapToolsOpen(!state.mapToolsOpen);
+    });
+
+    $('accent-default').addEventListener('click', function () { setAccent(null); });
+    // 'input' fires live as the native picker moves, so the whole app tints
+    // under your finger; the value is only committed to prefs on 'change'.
+    $('accent-custom-input').addEventListener('input', function () {
+      state.prefs.accent = this.value;
+      applyAccent();
+    });
+    $('accent-custom-input').addEventListener('change', function () {
+      setAccent(this.value);
     });
 
     $('zoom-in').addEventListener('click', function () { map.zoomBy(1); });
@@ -1500,6 +1619,9 @@
       savePrefs();
       applyToggleLabels();
       applyTheme();
+      // The default swatch previews whatever accent the theme resolves to,
+      // which differs between light and dark, so refresh it on a theme flip.
+      renderAccentSwatches();
     });
 
     $('lang-toggle').addEventListener('click', function () { I18N.cycleLang(); });
@@ -1695,6 +1817,7 @@
   function init() {
     loadStorage();
     applyTheme();
+    applyAccent();
 
     var start = parseHash() || { lat: 20, lng: 0, zoom: 3 };
     start.tileUrl = prefersDark() ? BASEMAP.dark : BASEMAP.light;
@@ -1726,6 +1849,8 @@
     setSheetExpanded(!!state.prefs.sheetExpanded);
 
     wireUI();
+    buildAccentSwatches();
+    renderAccentSwatches();
     // Collapsed to just the gear on load — sets the button's own label and
     // aria-expanded rather than leaving them to the markup's defaults.
     setMapToolsOpen(false);

@@ -146,8 +146,18 @@ that works out what you're travelling on:
 - **Where you're going.** Stations within 15 km, filtered to those ahead of
   you and sorted nearest-first, with distance and an ETA from your current
   speed. Heading comes from the GPS when it reports one and from consecutive
-  fixes when it doesn't, so this needs you to actually be moving before it
-  can tell one direction along a line from the other.
+  fixes when it doesn't.
+- **A filter that asks, when it can't tell.** Deriving a heading needs you to
+  be moving, so the rest of the time — sitting on a platform, or a train that
+  hasn't pulled away yet — the app can't know which way you'll go. Rather than
+  guess, it asks: **Which way are you heading?**, offering the two ends of the
+  line (each labelled by its furthest station) as buttons. Picking one fixes
+  the direction, and the whole question turns into a confirmation — *Is this
+  your train? Heading towards X — check the stops below match* — so you narrow
+  it down by reading the real stops against the real train rather than trusting
+  a silent guess. A second toggle, **All stops** vs **Fast**, drops the minor
+  halts an express skips, which is often the difference between two services on
+  the same line.
 
 **What it deliberately does not do is name your train.** OpenStreetMap
 describes infrastructure — where rails run, what a line is called, which

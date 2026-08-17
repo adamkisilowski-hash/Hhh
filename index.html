@@ -61,9 +61,19 @@
 
     <div id="map-controls" class="map-controls">
       <button id="map-settings" class="mc-btn mc-settings" data-i18n-title="controls.settings" aria-expanded="false" aria-controls="map-tools">
-        <svg class="mc-settings-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="3.1"/>
-          <path d="M19.4 13.6a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V20a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H4a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H10a1.7 1.7 0 0 0 1.03-1.56V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10a1.7 1.7 0 0 0 1.56 1.03H20a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.56 1.03z"/>
+        <svg class="mc-settings-icon" viewBox="0 0 48 48" width="26" height="26" aria-hidden="true">
+          <defs>
+            <linearGradient id="ms-gear-body" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#6f7e8a"/>
+              <stop offset="0.55" stop-color="#586773"/>
+              <stop offset="1" stop-color="#4b5966"/>
+            </linearGradient>
+          </defs>
+          <path fill="url(#ms-gear-body)" stroke="#0a0e12" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"
+            d="M21.37 7.41 L22.13 2.58 L25.87 2.58 L26.63 7.41 L30.02 8.32 L33.09 4.51 L36.33 6.39 L34.57 10.94 L37.06 13.43 L41.61 11.67 L43.49 14.91 L39.68 17.98 L40.59 21.37 L45.42 22.13 L45.42 25.87 L40.59 26.63 L39.68 30.02 L43.49 33.09 L41.61 36.33 L37.06 34.57 L34.57 37.06 L36.33 41.61 L33.09 43.49 L30.02 39.68 L26.63 40.59 L25.87 45.42 L22.13 45.42 L21.37 40.59 L17.98 39.68 L14.91 43.49 L11.67 41.61 L13.43 37.06 L10.94 34.57 L6.39 36.33 L4.51 33.09 L8.32 30.02 L7.41 26.63 L2.58 25.87 L2.58 22.13 L7.41 21.37 L8.32 17.98 L4.51 14.91 L6.39 11.67 L10.94 13.43 L13.43 10.94 L11.67 6.39 L14.91 4.51 L17.98 8.32 Z"/>
+          <circle cx="24" cy="24" r="12.6" fill="#dce3e8" stroke="#0a0e12" stroke-width="3.4"/>
+          <path fill="none" stroke="#0a0e12" stroke-width="3.1" stroke-linecap="round"
+            d="M26.15 32.02 A8.3 8.3 0 1 1 32.02 26.15"/>
         </svg>
       </button>
 
@@ -94,6 +104,24 @@
             <path class="fs-collapse" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>
           </svg>
         </button>
+
+        <div class="map-settings-card">
+          <div class="ms-block">
+            <span class="ms-label" data-i18n="accent.label">App colour</span>
+            <div id="accent-swatches" class="accent-swatches" role="group" data-i18n-aria="accent.label">
+              <button id="accent-default" class="accent-swatch accent-default" type="button" data-i18n-title="accent.default"></button>
+              <span id="accent-presets" class="accent-presets"></span>
+              <label class="accent-swatch accent-custom" data-i18n-title="accent.custom">
+                <input id="accent-custom-input" type="color" value="#2563eb" data-i18n-aria="accent.custom">
+                <span class="accent-custom-plus" aria-hidden="true">+</span>
+              </label>
+            </div>
+          </div>
+          <button id="train-toggle" class="ms-train" data-i18n-title="train.modeTitle">
+            <span class="ms-train-label"><span class="ms-train-icon" aria-hidden="true">🚆</span><span data-i18n="train.mode">Train mode</span></span>
+            <span id="train-state" class="ms-train-state">off</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -254,23 +282,10 @@
       <p class="muted train-disclaimer" data-i18n="train.disclaimer">Estimated from OpenStreetMap's railway data and your own speed and heading — not a timetable lookup, so it names the line and the kind of service, never a specific train number.</p>
     </section>
 
-    <div class="accent-row">
-      <span class="accent-label" data-i18n="accent.label">App colour</span>
-      <div id="accent-swatches" class="accent-swatches" role="group" data-i18n-aria="accent.label">
-        <button id="accent-default" class="accent-swatch accent-default" type="button" data-i18n-title="accent.default"></button>
-        <span id="accent-presets" class="accent-presets"></span>
-        <label class="accent-swatch accent-custom" data-i18n-title="accent.custom">
-          <input id="accent-custom-input" type="color" value="#2563eb" data-i18n-aria="accent.custom">
-          <span class="accent-custom-plus" aria-hidden="true">+</span>
-        </label>
-      </div>
-    </div>
-
     <footer class="panel-foot">
       <span class="foot-controls">
         <button id="unit-toggle" class="ghost-btn">metric</button>
         <button id="rate-toggle" class="ghost-btn" data-i18n-title="footer.rateTitle">every 2s</button>
-        <button id="train-toggle" class="ghost-btn" data-i18n-title="train.modeTitle">train off</button>
       </span>
       <span class="attrib">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>, <a href="https://www.openrailwaymap.org" target="_blank" rel="noopener">ORM</a></span>
     </footer>

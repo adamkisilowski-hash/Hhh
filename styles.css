@@ -355,30 +355,88 @@ body {
   gap: 6px;
 }
 
-/* ---------------------------------------------------------- accent */
+/* ------------------------------------------------ map settings card */
 
-.accent-row {
+/* Colour and train mode live in a glass card the settings gear reveals,
+   floating below the round map controls rather than sitting in the sheet
+   footer — one place for the app's appearance and modes. */
+.map-settings-card {
+  width: 236px;
+  padding: 12px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  /* A solid panel, so the whole thing (scroll, taps, the native picker)
+     works even though its container passes pointer events through. */
+  pointer-events: auto;
 }
 
-.accent-label {
-  flex: none;
-  font-size: 12px;
+.ms-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ms-label {
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-dim);
 }
 
+.ms-train {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ms-train.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.ms-train-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.ms-train-icon { font-size: 15px; line-height: 1; }
+
+.ms-train-state {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.ms-train.is-on .ms-train-state {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------- accent */
+
 .accent-swatches {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* The palette can outrun a narrow sheet, so it scrolls sideways rather
+  /* The palette can outrun the card's width, so it scrolls sideways rather
      than wrapping into a second row or squeezing the swatches. */
   overflow-x: auto;
   padding: 3px 1px;
@@ -602,7 +660,9 @@ body {
   right: 12px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  /* Right-aligned, so the round buttons stay under the gear once the wider
+     settings card widens the column. */
+  align-items: flex-end;
   gap: 12px;
   /* Above the sheet (7): on a short screen an expanded sheet can rise past
      where the lower controls sit, and a control you can see but can't tap
@@ -660,7 +720,7 @@ body {
 .map-tools {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
   /* Hidden rather than merely transparent once the fade finishes, so the
      buttons leave the tab order too — a control you can't see shouldn't be
@@ -689,12 +749,14 @@ body {
 
 /* Cascade away from the gear on the way out, and back towards it on the
    way in, so the group reads as one motion rather than three. */
-.map-tools > *:nth-child(1) { transition-delay: 0.10s; }
-.map-tools > *:nth-child(2) { transition-delay: 0.05s; }
-.map-tools > *:nth-child(3) { transition-delay: 0s; }
+.map-tools > *:nth-child(1) { transition-delay: 0.15s; }
+.map-tools > *:nth-child(2) { transition-delay: 0.10s; }
+.map-tools > *:nth-child(3) { transition-delay: 0.05s; }
+.map-tools > *:nth-child(4) { transition-delay: 0s; }
 .map-controls.is-open .map-tools > *:nth-child(1) { transition-delay: 0.02s; }
 .map-controls.is-open .map-tools > *:nth-child(2) { transition-delay: 0.07s; }
 .map-controls.is-open .map-tools > *:nth-child(3) { transition-delay: 0.12s; }
+.map-controls.is-open .map-tools > *:nth-child(4) { transition-delay: 0.17s; }
 
 @media (prefers-reduced-motion: reduce) {
   .mc-settings-icon,
@@ -1348,12 +1410,6 @@ body.is-immersive .sheet { display: none; }
 }
 
 /* ------------------------------------------------------------- train */
-
-.ghost-btn.is-on {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
 
 .train-card[hidden] { display: none; }
 

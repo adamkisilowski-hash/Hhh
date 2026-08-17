@@ -1528,8 +1528,9 @@
     $('unit-toggle').textContent = t(UNIT_KEYS[state.prefs.units]);
     $('theme-toggle').textContent = t(THEME_KEYS[state.prefs.theme]);
     $('rate-toggle').textContent = rateLabel();
-    $('train-toggle').textContent = t(state.prefs.trainMode ? 'train.modeOn' : 'train.modeOff');
+    $('train-state').textContent = t(state.prefs.trainMode ? 'train.on' : 'train.off');
     $('train-toggle').classList.toggle('is-on', !!state.prefs.trainMode);
+    $('train-toggle').setAttribute('aria-pressed', state.prefs.trainMode ? 'true' : 'false');
   }
 
   /* The map's controls live behind one settings button rather than sitting

@@ -29,16 +29,18 @@ Which tab was open and whether the sheet was left expanded both survive a
 reload.
 
 The map itself carries a single control: a settings gear in the top corner.
-Tapping it spins the gear a half turn and cascades the rest — zoom, recenter,
-heading-up, full screen — out beneath it; tapping again winds the same
-rotation back the other way and folds them away. The rotation is a plain
-transition between two angles rather than a keyframe animation, which is what
-makes the closing spin run backwards through the same arc for free and lets an
-interrupted tap reverse from wherever it had got to instead of snapping. While
-they're folded away the controls are `visibility: hidden`, not merely
-transparent, so they leave the tab order too — a button you can't see should
-never be the next thing keyboard focus lands on. The keyboard shortcuts work
-regardless of whether the panel is open.
+Tapping it spins the gear a half turn and cascades the rest out beneath it —
+the map controls (zoom, recenter, heading-up, full screen) and, in a small
+glass card, the app's own settings: its accent **colour** and the **train
+mode** toggle. Tapping again winds the same rotation back the other way and
+folds them away. The rotation is a plain transition between two angles rather
+than a keyframe animation, which is what makes the closing spin run backwards
+through the same arc for free and lets an interrupted tap reverse from
+wherever it had got to instead of snapping. While they're folded away the
+controls are `visibility: hidden`, not merely transparent, so they leave the
+tab order too — a button you can't see should never be the next thing
+keyboard focus lands on. The keyboard shortcuts work regardless of whether
+the panel is open.
 
 **Now** — your current latitude and longitude, plus accuracy, altitude, speed and
 heading when the device reports them. The readout updates by itself as you
@@ -130,7 +132,7 @@ street lookup, this only ever runs from an explicit submit, so it needs no
 rate-limiting of its own.
 
 **Train** — a mode for riding the rails, off by default and toggled from the
-footer. Switching it on paints every railway on the map (OpenRailwayMap's
+settings gear. Switching it on paints every railway on the map (OpenRailwayMap's
 overlay, drawn over whichever basemap you're using) and adds a **Train** tab
 that works out what you're travelling on:
 
@@ -180,10 +182,11 @@ fix twice and only costs battery. This is the expensive part of the battery
 bill, so it's a control rather than a fixed choice, and the Live pill pauses it
 outright.
 
-**App colour** — a swatch strip at the foot of the sheet recolours the whole
-app's accent — the location dot, the track line, the active tab, the primary
-buttons — from a small curated palette, plus a **custom** swatch that opens
-the OS colour picker (on iOS, the full system colour sheet). A chosen colour
+**App colour** — the settings gear's card carries a swatch strip that
+recolours the whole app's accent — the location dot, the track line, the
+active tab, the primary buttons — from a small curated palette, plus a
+**custom** swatch that opens the OS colour picker (on iOS, the full system
+colour sheet). A chosen colour
 applies identically in both light and dark rather than being theme-shifted,
 and the **default** swatch — split light/dark to signal it follows the theme
 — hands the accent back to the theme-aware stylesheet value. Button text on

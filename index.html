@@ -94,6 +94,24 @@
             <path class="fs-collapse" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>
           </svg>
         </button>
+
+        <div class="map-settings-card">
+          <div class="ms-block">
+            <span class="ms-label" data-i18n="accent.label">App colour</span>
+            <div id="accent-swatches" class="accent-swatches" role="group" data-i18n-aria="accent.label">
+              <button id="accent-default" class="accent-swatch accent-default" type="button" data-i18n-title="accent.default"></button>
+              <span id="accent-presets" class="accent-presets"></span>
+              <label class="accent-swatch accent-custom" data-i18n-title="accent.custom">
+                <input id="accent-custom-input" type="color" value="#2563eb" data-i18n-aria="accent.custom">
+                <span class="accent-custom-plus" aria-hidden="true">+</span>
+              </label>
+            </div>
+          </div>
+          <button id="train-toggle" class="ms-train" data-i18n-title="train.modeTitle">
+            <span class="ms-train-label"><span class="ms-train-icon" aria-hidden="true">🚆</span><span data-i18n="train.mode">Train mode</span></span>
+            <span id="train-state" class="ms-train-state">off</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -254,23 +272,10 @@
       <p class="muted train-disclaimer" data-i18n="train.disclaimer">Estimated from OpenStreetMap's railway data and your own speed and heading — not a timetable lookup, so it names the line and the kind of service, never a specific train number.</p>
     </section>
 
-    <div class="accent-row">
-      <span class="accent-label" data-i18n="accent.label">App colour</span>
-      <div id="accent-swatches" class="accent-swatches" role="group" data-i18n-aria="accent.label">
-        <button id="accent-default" class="accent-swatch accent-default" type="button" data-i18n-title="accent.default"></button>
-        <span id="accent-presets" class="accent-presets"></span>
-        <label class="accent-swatch accent-custom" data-i18n-title="accent.custom">
-          <input id="accent-custom-input" type="color" value="#2563eb" data-i18n-aria="accent.custom">
-          <span class="accent-custom-plus" aria-hidden="true">+</span>
-        </label>
-      </div>
-    </div>
-
     <footer class="panel-foot">
       <span class="foot-controls">
         <button id="unit-toggle" class="ghost-btn">metric</button>
         <button id="rate-toggle" class="ghost-btn" data-i18n-title="footer.rateTitle">every 2s</button>
-        <button id="train-toggle" class="ghost-btn" data-i18n-title="train.modeTitle">train off</button>
       </span>
       <span class="attrib">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>, <a href="https://www.openrailwaymap.org" target="_blank" rel="noopener">ORM</a></span>
     </footer>

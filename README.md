@@ -28,12 +28,24 @@ it's open collapses it back out of the way, the same as Apple/Google Maps.
 Which tab was open and whether the sheet was left expanded both survive a
 reload.
 
+The map itself carries a single control: a settings gear in the top corner.
+Tapping it spins the gear a half turn and cascades the rest — zoom, recenter,
+heading-up, full screen — out beneath it; tapping again winds the same
+rotation back the other way and folds them away. The rotation is a plain
+transition between two angles rather than a keyframe animation, which is what
+makes the closing spin run backwards through the same arc for free and lets an
+interrupted tap reverse from wherever it had got to instead of snapping. While
+they're folded away the controls are `visibility: hidden`, not merely
+transparent, so they leave the tab order too — a button you can't see should
+never be the next thing keyboard focus lands on. The keyboard shortcuts work
+regardless of whether the panel is open.
+
 **Now** — your current latitude and longitude, plus accuracy, altitude, speed and
 heading when the device reports them. The readout updates by itself as you
 move, and the map follows — the **Live** pill shows that it's running and
 pauses it when you want the battery back. Panning the map by hand stops it
-recentring on you, without stopping the updates; the target control forces a
-fresh fix and recenters on demand. Toggle between decimal degrees and
+recentring on you, without stopping the updates; the target control (behind
+the settings gear, or `l`) forces a fresh fix and recenters on demand. Toggle between decimal degrees and
 degrees/minutes/seconds, copy the coordinates, share them as an OpenStreetMap
 link, or jump the map to coordinates you paste in.
 
@@ -72,7 +84,7 @@ somewhere else is held briefly rather than shown, so a GPS dropping to Wi-Fi
 positioning doesn't fling the marker across town; a vaguer reading of the *same*
 spot is still accepted, so the precision shown never goes stale.
 
-**Full screen** — the ⛶ control (or `f`) hides the panel and fills the screen
+**Full screen** — the ⛶ control (behind the settings gear, or `f`) hides the panel and fills the screen
 with the map, leaving a compact readout of coordinates, accuracy and speed in
 the corner. It requests real browser fullscreen where that exists and falls back
 to the immersive layout where it doesn't, so it still does something useful on
@@ -116,28 +128,6 @@ pin exactly where the search landed. A search with no matches or a failed
 request says so rather than silently doing nothing; unlike the automatic
 street lookup, this only ever runs from an explicit submit, so it needs no
 rate-limiting of its own.
-
-**Navigate** — tap the arrow next to a saved place (once navigation is set
-up — see below) to draw a route there from where you're standing: a dashed
-line on the map, framed to fit both ends, with distance and an ETA shown
-back in the Now tab. Tapping that summary breaks it down into numbered
-steps — collapsed by default, since a longer walk can easily run past 20 of
-them — each with its own instruction and distance. The instruction text
-comes straight from OpenRouteService itself, already written in whichever
-of the app's three languages is active, rather than being translated
-locally: these are dynamic sentences naming real streets, not fixed UI text
-`i18n.js` could handle on its own. This is a route preview, not live
-turn-by-turn guidance — one request, drawn and broken down once; it doesn't
-reroute as you move or track which step you're on, and the live position
-dot keeps updating exactly as it always has, independently of whatever
-route is on screen. Walking is the default, matching the app's own pace stat
-and trip tracking, but a **walking**/**driving** pill sits in the footer
-next to the units and refresh-rate toggles (hidden, like Navigate itself,
-until navigation is set up) — tap it to switch, and every **Navigate** tap
-afterward uses whichever mode is currently selected, remembered the same
-way every other preference here is. A destination with no viable route, or
-a request that just fails, says so rather than leaving the button looking
-like it did nothing.
 
 **Train** — a mode for riding the rails, off by default and toggled from the
 footer. Switching it on paints every railway on the map (OpenRailwayMap's
@@ -208,7 +198,7 @@ rather than holding any of its own.
 
 ## How it's built
 
-Six source files plus a small set of icon assets, no dependencies, no toolchain:
+Five source files plus a small set of icon assets, no dependencies, no toolchain:
 
 - `index.html` — structure
 - `styles.css` — light/dark theming via CSS custom properties. The map is
@@ -225,11 +215,9 @@ Six source files plus a small set of icon assets, no dependencies, no toolchain:
   optional second raster layer over the top (the railway overlay in train
   mode, with its own tile cache so toggling it never disturbs a basemap tile
   already on screen), map rotation (one transform over a padded layer, since
-  a rotated square needs to be bigger than its viewport), an SVG overlay for
-  the accuracy circle, the recorded track and a route line (each its own
-  layer, drawn twice — casing under line — so any of them stays legible over
-  any background), and `fitBounds` to frame a whole route rather than just
-  recentering on one end of it
+  a rotated square needs to be bigger than its viewport), and an SVG overlay
+  for the accuracy circle and the recorded track (drawn twice, casing under
+  line, so it stays legible over any background)
 - `app.js` — geolocation, formatting, trip maths, storage, and UI wiring
 - `auth.js` — the sign-in gate; see **Accounts** below
 - `i18n.js` — the English/German/Polish dictionary and the `t(key, vars)`
@@ -237,8 +225,6 @@ Six source files plus a small set of icon assets, no dependencies, no toolchain:
   `data-i18n*` attributes in `index.html` to translate static markup, and
   re-applies on the fly when the language changes
 - `firebase-config.js` — your own Firebase project's config, if you set one up
-- `ors-config.js` — your own OpenRouteService API key, if you set one up; see
-  **Navigation** below
 
 `MiniMap` exists so the app has no mapping-library dependency. It covers what
 this app needs — pan, integer zoom, markers, one circle, one polyline — and
@@ -323,25 +309,6 @@ database and security rules behind it — a meaningfully bigger project than
 authentication alone, and not something to take on silently as a side effect
 of adding a login screen.
 
-## Navigation
-
-Also optional and off by default — the **Navigate** arrow on a saved place
-stays hidden entirely until you set this up, rather than showing a control
-that would just fail every time it's pressed.
-
-1. [Sign up free](https://openrouteservice.org/dev/#/signup) for
-   OpenRouteService (2,000 requests/day on the free tier — plenty for
-   personal use).
-2. From the dashboard, **Request a token**, choosing the **Standard** token
-   type, and copy the key it gives you.
-3. Paste it into `ors-config.js` in place of `PLACEHOLDER`, and deploy.
-
-Unlike the Firebase config values above, an OpenRouteService key is tied to
-your personal request quota rather than safe-by-design to publish — treat
-it like any other API key. That's fine for local development or a private
-deployment; for a public site, inject it at deploy time instead of
-committing a real one to the repo.
-
 ## Privacy
 
 Trip tracking, saved places, and every preference stay in `localStorage` on
@@ -354,10 +321,8 @@ never to a server of this app's own (there isn't one): map tile images (see
 below), naming the street you're on and finding current weather (both to
 OpenStreetMap's Nominatim and Open-Meteo respectively, and only for where
 you currently are), searching an address you typed (also Nominatim, sent
-only when you submit that search), the railway lookup while **train mode**
-is on (to Overpass, at most once a minute), and — only once you've set up
-navigation — the route request when you tap **Navigate**, which sends both
-your current position and the destination to OpenRouteService. None of these run in the
+only when you submit that search), and the railway lookup while **train
+mode** is on (to Overpass, at most once a minute). None of these run in the
 background beyond what's needed to keep the readout current; nothing about
 your history or habits accumulates anywhere but your own device. If you've
 set up sign-in, the one other thing that leaves the device is the

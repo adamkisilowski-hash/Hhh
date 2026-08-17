@@ -16,17 +16,6 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
-  // Navigation is optional and off by default, same pattern as accounts —
-  // the "Navigate" option on a saved place stays hidden entirely until a
-  // real OpenRouteService key is supplied, rather than showing a control
-  // that would just fail every time it's pressed.
-  var ORS_CONFIG = window.WHEREABOUTS_ORS_CONFIG || {};
-  var ORS_CONFIGURED = !!(ORS_CONFIG.apiKey && ORS_CONFIG.apiKey !== 'PLACEHOLDER');
-  // Walking is the default, matching the app's own pace stat and trip-
-  // tracking framing — the footer toggle switches to driving; add another
-  // entry here (and to ROUTE_PROFILE_KEYS below) for e.g. cycling-regular.
-  var ROUTE_PROFILES = ['foot-walking', 'driving-car'];
-
   var state = {
     position: null,      // most recent GeolocationPosition
     watchId: null,
@@ -38,8 +27,7 @@
     places: [],
     prefs: {
       units: 'metric', coordFormat: 'decimal', theme: 'auto', live: true, rate: 'turbo',
-      headingUp: false, sheetExpanded: false, activeTab: 'now', routeProfile: 'foot-walking',
-      trainMode: false
+      headingUp: false, sheetExpanded: false, activeTab: 'now', trainMode: false
     },
     followMe: true,
     immersive: false,
@@ -53,6 +41,7 @@
     compassSeen: false,
     locateBusy: false,
     sheetExpanded: false,
+    mapToolsOpen: false,
     deadReckonTimer: null,
     streetName: null,
     streetLookupAt: 0,
@@ -60,8 +49,6 @@
     weather: null,
     weatherAt: 0,
     weatherPoint: null,
-    route: null,
-    routeBusy: false,
     train: {
       track: null,       // the railway way we think you're on
       stations: [],      // every named station the last query found nearby
@@ -270,13 +257,6 @@
       'style="transform:rotate(' + Math.round(bearingDeg) + 'deg)">' +
       '<path d="M12 2.5 L17 15.5 L12 12.7 L7 15.5 Z" fill="currentColor"/></svg>';
   }
-
-  // A compact "navigate" glyph — the classic location-arrow triangle —
-  // for the per-place Navigate button. Plain currentColor, matching the
-  // other icon buttons in the app rather than introducing its own color.
-  var NAV_ICON_SVG =
-    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" ' +
-    'stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 L19 21 L12 17 L5 21 Z"/></svg>';
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -710,119 +690,15 @@
     row.hidden = false;
   }
 
-  /* --------------------------------------------------------- navigation */
-
-  /* A route preview, not live turn-by-turn guidance: one request when you
-   * tap Navigate, drawn once, broken down into the same numbered steps
-   * OpenRouteService itself would read out — asked for in whichever of the
-   * app's three languages is active, since these are dynamic sentences
-   * naming real streets rather than fixed UI text i18n.js could translate
-   * itself. It doesn't reroute as you move or track which step you're on;
-   * the live position dot keeps updating exactly as it always has,
-   * entirely independently of whatever route is on screen. */
+  /* ETA formatting, shared by anything that has a duration in seconds to
+   * show — currently train mode's upcoming stops. */
 
   function formatEta(seconds) {
-    if (seconds == null || isNaN(seconds)) return '—';
+    if (seconds == null || isNaN(seconds)) return '\u2014';
     var mins = Math.round(seconds / 60);
-    if (mins < 60) return t('route.etaMin', { n: mins });
+    if (mins < 60) return t('time.etaMin', { n: mins });
     var h = Math.floor(mins / 60), m = mins % 60;
-    return m ? t('route.etaHourMin', { h: h, m: m }) : t('route.etaHour', { h: h });
-  }
-
-  function startNavigation(place) {
-    if (!state.position) { toast(t('toast.findLocationFirst')); return; }
-    if (state.routeBusy) return;
-    state.routeBusy = true;
-    var c = state.position.coords;
-    var url = 'https://api.openrouteservice.org/v2/directions/' + state.prefs.routeProfile + '/geojson';
-    fetch(url, {
-      method: 'POST',
-      headers: { Authorization: ORS_CONFIG.apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        coordinates: [[c.longitude, c.latitude], [place.lng, place.lat]],
-        instructions: true,
-        language: I18N.getLang()
-      })
-    })
-      .then(function (r) {
-        if (!r.ok) throw new Error('route request failed: ' + r.status);
-        return r.json();
-      })
-      .then(function (data) {
-        var feature = data && data.features && data.features[0];
-        var coords = feature && feature.geometry && feature.geometry.coordinates;
-        if (!coords || coords.length < 2) throw new Error('no route geometry');
-        var points = coords.map(function (pair) { return { lat: pair[1], lng: pair[0] }; });
-        var props = feature.properties || {};
-        var summary = props.summary;
-        var segment = props.segments && props.segments[0];
-        state.route = {
-          place: place,
-          points: points,
-          distance: summary ? summary.distance : null,
-          duration: summary ? summary.duration : null,
-          steps: (segment && segment.steps) || [],
-          stepsOpen: false
-        };
-        map.setRoute(points);
-        map.fitBounds(points, 56);
-        renderRoute();
-        // The summary lives in the Now tab, same as weather/street — jump
-        // there so tapping Navigate from Places actually shows it, rather
-        // than leaving it correctly populated but out of sight.
-        activateTab('now');
-        state.prefs.activeTab = 'now';
-        savePrefs();
-      })
-      .catch(function () { toast(t('route.failed')); })
-      .finally(function () { state.routeBusy = false; });
-  }
-
-  function clearNavigation() {
-    state.route = null;
-    map.setRoute([]);
-    renderRoute();
-  }
-
-  function toggleRouteSteps() {
-    if (!state.route) return;
-    state.route.stepsOpen = !state.route.stepsOpen;
-    renderRouteSteps();
-  }
-
-  function renderRoute() {
-    var row = $('route-row');
-    if (!state.route) { row.hidden = true; renderRouteSteps(); return; }
-    $('route-text').textContent = t('route.summary', {
-      name: state.route.place.name,
-      distance: formatDistance(state.route.distance),
-      duration: formatEta(state.route.duration)
-    });
-    row.hidden = false;
-    renderRouteSteps();
-  }
-
-  // The numbered breakdown behind the summary line — collapsed by default,
-  // same as the other disclosures in this app, since a longer walk can
-  // easily run to 20+ steps. Instruction text comes straight from
-  // OpenRouteService already in the active language; only the per-step
-  // distance is formatted locally, so it respects the metric/imperial toggle.
-  function renderRouteSteps() {
-    var toggle = $('route-summary-toggle');
-    var list = $('route-steps');
-    var steps = state.route ? state.route.steps : [];
-    var open = !!(state.route && state.route.stepsOpen && steps.length);
-
-    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    list.hidden = !open;
-    if (!open) return;
-
-    list.innerHTML = steps.map(function (step) {
-      return '<li class="route-step">' +
-        '<span class="route-step-instruction">' + escapeHtml(step.instruction || step.name || '') + '</span>' +
-        '<span class="route-step-dist">' + escapeHtml(formatDistance(step.distance)) + '</span>' +
-      '</li>';
-    }).join('');
+    return m ? t('time.etaHourMin', { h: h, m: m }) : t('time.etaHour', { h: h });
   }
 
   /* -------------------------------------------------------- train mode */
@@ -1242,11 +1118,6 @@
           ? formatDistance(distance(here, place)) + ' · ' + compassPoint(brg)
           : new Date(place.savedAt).toLocaleDateString(I18N.getLang());
         var arrow = brg != null ? waypointArrowSvg(brg) : '';
-        // Hidden entirely rather than shown-but-broken when navigation
-        // isn't configured — same call the account avatar makes for auth.
-        var navBtn = ORS_CONFIGURED
-          ? '<button class="place-nav" type="button" title="' + escapeHtml(t('route.navigate')) + '" aria-label="' + escapeHtml(t('route.navigateAria', { name: place.name })) + '">' + NAV_ICON_SVG + '</button>'
-          : '';
 
         li.innerHTML =
           '<button class="place-main" type="button">' +
@@ -1254,15 +1125,12 @@
             '<span class="place-meta">' + arrow + escapeHtml(meta) + '</span>' +
             '<span class="place-coords">' + place.lat.toFixed(5) + ', ' + place.lng.toFixed(5) + '</span>' +
           '</button>' +
-          navBtn +
           '<button class="place-del" type="button" title="' + escapeHtml(t('places.deleteTitle')) + '" aria-label="' + escapeHtml(t('places.deleteAria', { name: place.name })) + '">×</button>';
 
         li.querySelector('.place-main').addEventListener('click', function () {
           state.followMe = false;
           map.setView(place.lat, place.lng, 16);
         });
-        var navEl = li.querySelector('.place-nav');
-        if (navEl) navEl.addEventListener('click', function () { startNavigation(place); });
         li.querySelector('.place-del').addEventListener('click', function () {
           state.places = state.places.filter(function (p) { return p.id !== place.id; });
           savePlaces();
@@ -1546,25 +1414,35 @@
   var COORD_KEYS = { decimal: 'toggles.coordDecimal', dms: 'toggles.coordDms' };
   var UNIT_KEYS = { metric: 'toggles.unitsMetric', imperial: 'toggles.unitsImperial' };
   var THEME_KEYS = { auto: 'toggles.themeAuto', light: 'toggles.themeLight', dark: 'toggles.themeDark' };
-  var ROUTE_PROFILE_KEYS = { 'foot-walking': 'route.profileWalking', 'driving-car': 'route.profileDriving' };
 
   function applyToggleLabels() {
     $('coord-format').textContent = t(COORD_KEYS[state.prefs.coordFormat]);
     $('unit-toggle').textContent = t(UNIT_KEYS[state.prefs.units]);
     $('theme-toggle').textContent = t(THEME_KEYS[state.prefs.theme]);
     $('rate-toggle').textContent = rateLabel();
-    // Hidden entirely when navigation isn't configured — same call every
-    // other ORS-dependent control makes, rather than showing a preference
-    // for a feature that doesn't do anything yet.
-    if (ORS_CONFIGURED) {
-      $('route-profile-toggle').hidden = false;
-      $('route-profile-toggle').textContent = t(ROUTE_PROFILE_KEYS[state.prefs.routeProfile]);
-    }
     $('train-toggle').textContent = t(state.prefs.trainMode ? 'train.modeOn' : 'train.modeOff');
     $('train-toggle').classList.toggle('is-on', !!state.prefs.trainMode);
   }
 
+  /* The map's controls live behind one settings button rather than sitting
+   * on the map permanently. The gear's rotation is a plain CSS transition
+   * between two angles, which means the closing spin runs backwards through
+   * the same arc for free — no second animation, and an interrupted click
+   * reverses from wherever it had got to rather than jumping. */
+  function setMapToolsOpen(on) {
+    state.mapToolsOpen = on;
+    $('map-controls').classList.toggle('is-open', on);
+    var btn = $('map-settings');
+    btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    btn.title = t(on ? 'controls.settingsOpen' : 'controls.settings');
+    btn.setAttribute('aria-label', btn.title);
+  }
+
   function wireUI() {
+    $('map-settings').addEventListener('click', function () {
+      setMapToolsOpen(!state.mapToolsOpen);
+    });
+
     $('zoom-in').addEventListener('click', function () { map.zoomBy(1); });
     $('zoom-out').addEventListener('click', function () { map.zoomBy(-1); });
 
@@ -1625,13 +1503,6 @@
     });
 
     $('lang-toggle').addEventListener('click', function () { I18N.cycleLang(); });
-
-    $('route-profile-toggle').addEventListener('click', function () {
-      var i = ROUTE_PROFILES.indexOf(state.prefs.routeProfile);
-      state.prefs.routeProfile = ROUTE_PROFILES[(i + 1) % ROUTE_PROFILES.length];
-      savePrefs();
-      applyToggleLabels();
-    });
 
     $('train-toggle').addEventListener('click', function () {
       setTrainMode(!state.prefs.trainMode);
@@ -1797,8 +1668,6 @@
       download('whereabouts-places.json', JSON.stringify(state.places, null, 2), 'application/json');
     });
 
-    $('route-summary-toggle').addEventListener('click', toggleRouteSteps);
-    $('route-clear').addEventListener('click', clearNavigation);
 
     // Tile images fail silently; surface it once so a blank map isn't a mystery.
     var tileErrors = 0;
@@ -1857,6 +1726,9 @@
     setSheetExpanded(!!state.prefs.sheetExpanded);
 
     wireUI();
+    // Collapsed to just the gear on load — sets the button's own label and
+    // aria-expanded rather than leaving them to the markup's defaults.
+    setMapToolsOpen(false);
     renderLive();
     renderSheetSummary();
     renderCompass();
@@ -1877,12 +1749,12 @@
       renderLive();
       renderCompass();
       renderWeather();
-      renderRoute();
       renderTrain();
       renderPlaces();
       if (state.position) renderNow(); else renderSheetSummary();
       renderTrip();
       setImmersive(state.immersive);
+      setMapToolsOpen(state.mapToolsOpen);
       $('sheet-handle').setAttribute('aria-label', state.sheetExpanded ? t('sheet.collapse') : t('sheet.expand'));
     });
 

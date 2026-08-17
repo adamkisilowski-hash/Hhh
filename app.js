@@ -58,7 +58,12 @@
       queryPoint: null,
       busy: false,
       failed: false,
-      prevPoint: null    // for deriving heading when the GPS won't report one
+      prevPoint: null,   // for deriving heading when the GPS won't report one
+      // The confirmation filter's answers — a bearing you picked for "which
+      // way am I going", and whether you're on the stopping or fast service.
+      // In-memory only: they belong to this journey, not to the saved prefs.
+      chosenBearing: null,
+      stopPattern: 'all'
     }
   };
 
@@ -795,10 +800,12 @@
    * strict bearing because track curves: a stop 10 km down a bending line
    * is still ahead of you even when it isn't straight ahead of you. This is
    * the honest limit of doing it without the line's own geometry — good for
-   * the next few stops, vaguer the further out it reaches. */
-  function stopsAhead(here, headingDeg, stations, speedMps) {
+   * the next few stops, vaguer the further out it reaches. A 'fast' pattern
+   * drops the minor halts a stopping service calls at but an express skips. */
+  function stopsAhead(here, headingDeg, stations, speedMps, pattern) {
     if (headingDeg == null) return [];
     return stations
+      .filter(function (s) { return pattern !== 'fast' || s.railway !== 'halt'; })
       .map(function (s) {
         var d = distance(here, s);
         return {
@@ -813,6 +820,37 @@
       .filter(function (s) { return s.off < 75 && s.distance > 250; })
       .sort(function (a, b) { return a.distance - b.distance; })
       .slice(0, 6);
+  }
+
+  /* The two ways along the line, for the "which way are you heading?"
+   * question. Without the line's own geometry, the farthest station sets
+   * one end; every station within 90° of it is that direction, the rest are
+   * the other. Each option is labelled by its farthest station — the one
+   * that reads as a destination. Returns [] if there's only one cluster
+   * (you're at or near a terminus) or nothing to split. */
+  function directionOptions(here, stations) {
+    if (!here || !stations || !stations.length) return [];
+    var withBearing = stations
+      .map(function (s) { return { name: s.name, bearing: bearing(here, s), distance: distance(here, s) }; })
+      .filter(function (s) { return s.distance > 250; })
+      .sort(function (a, b) { return b.distance - a.distance; });
+    if (!withBearing.length) return [];
+
+    var anchor = withBearing[0];
+    var fwd = [], back = [];
+    withBearing.forEach(function (s) {
+      (Math.abs(angleDelta(anchor.bearing, s.bearing)) < 90 ? fwd : back).push(s);
+    });
+
+    var opts = [{ bearing: anchor.bearing, toward: fwd[0].name }];
+    if (back.length) opts.push({ bearing: (anchor.bearing + 180) % 360, toward: back[0].name });
+    return opts;
+  }
+
+  // The bearing driving the stops list: the direction you confirmed if you
+  // picked one, otherwise the one derived from your movement.
+  function activeBearing() {
+    return state.train.chosenBearing != null ? state.train.chosenBearing : trainHeading();
   }
 
   function maybeQueryRailway(lat, lng) {
@@ -897,6 +935,8 @@
       state.train.stops = [];
       state.train.queryPoint = null;
       state.train.queryAt = 0;
+      state.train.chosenBearing = null;
+      state.train.stopPattern = 'all';
       if (state.prefs.activeTab === 'train') {
         activateTab('now');
         state.prefs.activeTab = 'now';
@@ -906,6 +946,39 @@
     renderTrain();
   }
 
+  function setTrainDirection(bearingDeg) {
+    state.train.chosenBearing = bearingDeg;
+    renderTrain();
+  }
+
+  function setTrainPattern(pattern) {
+    state.train.stopPattern = pattern;
+    renderTrain();
+  }
+
+  // The two direction buttons — the "which way?" filter. The one matching
+  // your movement (when we can tell) is flagged as likely, so the guess is a
+  // nudge rather than a blank choice.
+  function renderDirections(opts, derived) {
+    var host = $('train-directions');
+    host.innerHTML = '';
+    opts.forEach(function (opt) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'train-dir';
+      var chosen = state.train.chosenBearing != null &&
+        Math.abs(angleDelta(state.train.chosenBearing, opt.bearing)) < 45;
+      var likely = state.train.chosenBearing == null && derived != null &&
+        Math.abs(angleDelta(derived, opt.bearing)) < 60;
+      b.classList.toggle('is-active', chosen);
+      b.innerHTML = '<span class="train-dir-arrow" aria-hidden="true">→</span>' +
+        '<span class="train-dir-name">' + escapeHtml(opt.toward) + '</span>' +
+        (likely ? '<span class="train-dir-hint">' + escapeHtml(t('train.likely')) + '</span>' : '');
+      b.addEventListener('click', function () { setTrainDirection(opt.bearing); });
+      host.appendChild(b);
+    });
+  }
+
   function renderTrain() {
     if (!state.prefs.trainMode) return;
 
@@ -913,18 +986,20 @@
     var speed = c ? c.speed : null;
     var tags = state.train.track;
     var here = c ? { lat: c.latitude, lng: c.longitude } : null;
-    var stops = here ? stopsAhead(here, trainHeading(), state.train.stations || [], speed) : [];
-    state.train.stops = stops;
 
     var known = !!tags;
     $('train-card').hidden = !known;
     $('train-status').hidden = known;
+    $('train-filter').hidden = !(known && here);
 
-    if (!known) {
-      $('train-status').textContent = state.train.failed
-        ? t('train.lookupFailed')
-        : (state.train.busy ? t('train.searching') : t('train.noTrack'));
-    } else {
+    var bearing = activeBearing();
+    var haveDir = bearing != null;
+    var stops = (here && haveDir)
+      ? stopsAhead(here, bearing, state.train.stations || [], speed, state.train.stopPattern)
+      : [];
+    state.train.stops = stops;
+
+    if (known) {
       var service = estimateService(tags, speed);
       var confidence = trainConfidence(tags, speed, stops);
       $('train-service').textContent = t(service);
@@ -936,9 +1011,33 @@
       $('train-line').textContent = lineName ? t('train.onLine', { line: lineName }) : t('train.unnamedLine');
       $('train-line').hidden = false;
 
+      // The interactive filter: the robot asks which way, then — once it
+      // knows — turns the question into a confirmation for you to check
+      // against the real train.
+      var opts = directionOptions(here, state.train.stations || []);
+      renderDirections(opts, trainHeading());
+      $('train-directions').hidden = opts.length < 2;
+
+      var toward = stops.length ? stops[stops.length - 1].name : null;
+      if (!haveDir) {
+        $('train-ask').textContent = t('train.whichWay');
+      } else if (toward) {
+        $('train-ask').textContent = t('train.confirmAsk', { stop: toward });
+      } else {
+        $('train-ask').textContent = t('train.confirmNoStops');
+      }
+
+      $('train-pattern').hidden = !haveDir;
+      $('train-pattern-all').classList.toggle('is-active', state.train.stopPattern !== 'fast');
+      $('train-pattern-fast').classList.toggle('is-active', state.train.stopPattern === 'fast');
+
       var far = stops.length ? stops[stops.length - 1] : null;
       $('train-direction').hidden = !far;
       if (far) $('train-direction').textContent = t('train.towards', { stop: far.name });
+    } else {
+      $('train-status').textContent = state.train.failed
+        ? t('train.lookupFailed')
+        : (state.train.busy ? t('train.searching') : t('train.noTrack'));
     }
 
     $('train-speed').textContent = formatSpeed(speed);
@@ -946,6 +1045,7 @@
 
     var list = $('train-stops');
     $('train-stops-empty').hidden = stops.length > 0;
+    $('train-stops-empty').textContent = (known && !haveDir) ? t('train.pickDirection') : t('train.noStops');
     list.innerHTML = stops.map(function (s) {
       return '<li class="train-stop">' +
         '<span class="train-stop-name">' + escapeHtml(s.name) + '</span>' +
@@ -1630,6 +1730,9 @@
     $('train-toggle').addEventListener('click', function () {
       setTrainMode(!state.prefs.trainMode);
     });
+
+    $('train-pattern-all').addEventListener('click', function () { setTrainPattern('all'); });
+    $('train-pattern-fast').addEventListener('click', function () { setTrainPattern('fast'); });
 
     $('copy').addEventListener('click', function () {
       if (!state.position) { toast(t('toast.noFix')); return; }

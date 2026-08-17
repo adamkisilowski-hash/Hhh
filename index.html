@@ -270,6 +270,18 @@
         <p id="train-direction" class="train-direction" hidden></p>
       </div>
 
+      <div id="train-filter" class="train-filter" hidden>
+        <p id="train-ask" class="train-ask"></p>
+        <div id="train-directions" class="train-directions" role="group" aria-label="Direction"></div>
+        <div id="train-pattern" class="train-pattern" hidden>
+          <span class="train-pattern-label" data-i18n="train.service">Service</span>
+          <div class="train-pattern-btns">
+            <button id="train-pattern-all" class="train-pattern-btn" type="button" data-i18n="train.stopAll">All stops</button>
+            <button id="train-pattern-fast" class="train-pattern-btn" type="button" data-i18n="train.stopFast">Fast</button>
+          </div>
+        </div>
+      </div>
+
       <div class="stats stats-2">
         <div class="stat"><span class="stat-label" data-i18n="now.speed">Speed</span><span id="train-speed" class="stat-value">—</span></div>
         <div class="stat"><span class="stat-label" data-i18n="train.nextStop">Next stop</span><span id="train-next" class="stat-value">—</span></div>

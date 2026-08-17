@@ -1458,6 +1458,111 @@ body.is-immersive .sheet { display: none; }
 
 .train-direction { color: var(--text-dim); }
 
+/* The "which way / is this your train" filter. */
+.train-filter[hidden] { display: none; }
+
+.train-filter {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.train-ask {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.train-directions[hidden] { display: none; }
+
+.train-directions {
+  display: flex;
+  gap: 8px;
+}
+
+.train-dir {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.train-dir.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.train-dir-arrow { flex: none; font-size: 15px; line-height: 1; }
+
+.train-dir-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.train-dir-hint {
+  flex: none;
+  margin-left: auto;
+  font-size: 10px;
+  text-transform: lowercase;
+  color: var(--text-dim);
+}
+
+.train-pattern[hidden] { display: none; }
+
+.train-pattern {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.train-pattern-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.train-pattern-btns {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.train-pattern-btn {
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.train-pattern-btn.is-active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
 .train-stops-head {
   margin: 14px 0 8px;
   font-size: 12px;
